@@ -1,8 +1,11 @@
 package com.univocity.trader.config;
 
+import java.math.*;
+
 public class Allocation implements Cloneable{
 
-	public static final double EFFECTIVELY_ZERO = 0.0000001;
+	public static final double EFFECTIVELY_ZERO = 0.00000001;
+	public static final BigDecimal MIN_DECIMAL = new BigDecimal("0.00000001");
 
 	static Allocation NO_LIMITS = new Allocation();
 

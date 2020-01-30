@@ -8,6 +8,7 @@ import com.univocity.trader.simulation.orderfill.*;
 
 import java.math.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.account.Order.Side.*;
@@ -21,13 +22,22 @@ public class SimulatedClientAccount implements ClientAccount {
 	private OrderFillEmulator orderFillEmulator;
 	private final int marginReservePercentage;
 
-	private static class PendingOrder {
+	private static class PendingOrder implements Comparable<PendingOrder> {
 		final Order order;
 		final BigDecimal lockedAmount;
 
 		public PendingOrder(Order order, BigDecimal lockedAmount) {
 			this.order = order;
 			this.lockedAmount = round(lockedAmount);
+		}
+
+		@Override
+		public int compareTo(PendingOrder o) {
+			int comparison = Long.compare(this.order.getTime(), o.order.getTime());
+			if (comparison == 0) {
+				comparison = this.order.getOrderId().compareTo(o.order.getOrderId());
+			}
+			return comparison;
 		}
 	}
 
@@ -72,7 +82,7 @@ public class SimulatedClientAccount implements ClientAccount {
 		BigDecimal locked = BigDecimal.ZERO;
 
 		DefaultOrder order = null;
-		if (orderDetails.isBuy() && availableFunds.doubleValue() - fees >= orderAmount.doubleValue() - 0.000000001) {
+		if (orderDetails.isBuy() && availableFunds.doubleValue() - fees >= orderAmount.doubleValue() - EFFECTIVELY_ZERO) {
 			if (orderDetails.isLong()) {
 				locked = orderDetails.getTotalOrderAmount();
 				account.lockAmount(fundsSymbol, locked);
@@ -81,6 +91,12 @@ public class SimulatedClientAccount implements ClientAccount {
 
 		} else if (orderDetails.isSell()) {
 			if (orderDetails.isLong()) {
+				if (availableAssets.compareTo(quantity) < 0) {
+					double difference = 1.0 - (availableAssets.doubleValue() / quantity.doubleValue());
+					if (difference < 0.00001) { //0.001% quantity mismatch.
+						quantity = availableAssets.multiply(new BigDecimal("0.9999"));
+					}
+				}
 				if (availableAssets.compareTo(quantity) >= 0) {
 					locked = orderDetails.getQuantity();
 					account.lockAmount(assetsSymbol, locked);
@@ -98,7 +114,7 @@ public class SimulatedClientAccount implements ClientAccount {
 		}
 
 		if (order != null) {
-			orders.computeIfAbsent(order.getSymbol(), (s) -> new HashSet<>()).add(new PendingOrder(order, locked));
+			orders.computeIfAbsent(order.getSymbol(), (s) -> new ConcurrentSkipListSet<>()).add(new PendingOrder(order, locked));
 		}
 
 		attachOrders(order, orderDetails);
@@ -217,20 +233,23 @@ public class SimulatedClientAccount implements ClientAccount {
 	}
 
 	private void processAttachedOrder(OrderRequest order, BigDecimal quantity, Candle candle) {
-		if(quantity.compareTo(BigDecimal.ZERO) > 0) {
-			order.setQuantity(quantity);
-			order.updateTime(candle.openTime);
-			System.out.println(">>>> EXECUTING TRIGGERED ORDER " + order);
-			Order o = account.executeOrder(order);  //TODO -> check if order is managed by everything
-			if(o == null){
-				System.out.println("A");
-			}
-			orderFillEmulator.fillOrder((DefaultOrder) o, candle);
+		if (quantity.compareTo(BigDecimal.ZERO) > 0) {
+//			order.setQuantity(quantity);
+//			order.updateTime(candle.openTime);
+//			System.out.println(">>>> EXECUTING TRIGGERED ORDER " + order);
+//			Order o = account.executeOrder(order);  //TODO -> check if order is managed by everything
+//			if (o == null) {
+//				System.out.println("A");
+//			}
+//			orderFillEmulator.fillOrder((DefaultOrder) o, candle);
 		}
 	}
 
 
 	private boolean triggeredBy(OrderRequest order, Candle candle) {
+		if(candle == null){
+			return false;
+		}
 		double priceInOrder = order.getPrice().doubleValue();
 		return candle.low >= priceInOrder || candle.high <= priceInOrder;
 	}
