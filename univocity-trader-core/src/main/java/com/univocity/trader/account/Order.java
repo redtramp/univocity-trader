@@ -49,7 +49,11 @@ public interface Order {
 
 	void cancel();
 
-	default List<Order> getAttachments(){
+	default Order getParent(){
+		return null;
+	}
+
+	default List<OrderRequest> getAttachments(){
 		return Collections.emptyList();
 	}
 

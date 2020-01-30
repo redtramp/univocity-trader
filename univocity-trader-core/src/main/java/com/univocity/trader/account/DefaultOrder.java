@@ -11,15 +11,21 @@ public class DefaultOrder extends OrderRequest implements Order {
 	private BigDecimal executedQuantity;
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
-	private List<Order> attachments;
+	private Order parent;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
-		this(assetSymbol, fundSymbol, side, tradeSide, time, null);
+		this(assetSymbol, fundSymbol, side, tradeSide, time, (DefaultOrder) null);
 	}
 
-	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time, List<Order> attachments) {
+	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time, DefaultOrder parent) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
-		this.attachments = attachments;
+		if (parent != null) {
+			this.parent = parent;
+			if (parent.attachments == null) {
+				parent.attachments = new ArrayList<>();
+			}
+			parent.attachments.add(this);
+		}
 	}
 
 	public DefaultOrder(Order order) {
@@ -70,10 +76,15 @@ public class DefaultOrder extends OrderRequest implements Order {
 
 	@Override
 	public void cancel() {
-		this.status = Status.CANCELLED;
+		if(this.status != Status.FILLED) {
+			this.status = Status.CANCELLED;
+		}
 	}
 
 	public boolean isCancelled() {
+		if (parent != null && parent.isCancelled()) {
+			return true;
+		}
 		return this.status == Status.CANCELLED;
 	}
 
@@ -91,7 +102,7 @@ public class DefaultOrder extends OrderRequest implements Order {
 		return print(0);
 	}
 
-	public List<Order> getAttachments() {
-		return attachments == null ? null : Collections.unmodifiableList(attachments);
+	public final Order getParent() {
+		return parent;
 	}
 }

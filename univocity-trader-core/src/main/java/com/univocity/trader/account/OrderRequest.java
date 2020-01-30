@@ -15,14 +15,14 @@ public class OrderRequest {
 	private final String fundsSymbol;
 	private final Order.Side side;
 	private final Trade.Side tradeSide;
-	private final long time;
+	private long time;
 	private final Order resubmittedFrom;
 
 	private BigDecimal price = BigDecimal.ZERO;
 	private BigDecimal quantity = BigDecimal.ZERO;
 	private Order.Type type = Order.Type.LIMIT;
 
-	private List<OrderRequest> attachments = new ArrayList<>();
+	protected List<OrderRequest> attachments = new ArrayList<>();
 
 	public OrderRequest(String assetsSymbol, String fundsSymbol, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
 		this.resubmittedFrom = resubmittedFrom;
@@ -137,18 +137,17 @@ public class OrderRequest {
 		return side == SELL;
 	}
 
-	public final List<OrderRequest> getRequestAttachments() {
+	public void updateTime(long time) {
+		this.time = time;
+	}
+
+	public final List<OrderRequest> getAttachments() {
 		return attachments == null ? null : Collections.unmodifiableList(attachments);
 	}
 
 	public OrderRequest attach(Order.Type type, double change) {
 		if (attachments == null) {
 			throw new IllegalArgumentException("Can only attach orders to the parent order");
-		}
-		for (OrderRequest attachment : attachments) {
-			if (attachment.side == side && type == attachment.type) {
-				return attachment;
-			}
 		}
 
 		OrderRequest attachment = new OrderRequest(assetsSymbol, fundsSymbol, side == BUY ? SELL : BUY, this.tradeSide, this.time, null);

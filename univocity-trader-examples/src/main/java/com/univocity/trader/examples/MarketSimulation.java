@@ -47,6 +47,8 @@ public class MarketSimulation {
 				.add((symbol) -> new SimpleStrategyStatistics(symbol))
 		;
 
+		account.orderManager(new ExampleOrderManager());
+
 		Simulation simulation = simulator.configure().simulation();
 		simulation.initialFunds(1000.0)
 				.tradingFees(SimpleTradingFees.percentage(0.1))

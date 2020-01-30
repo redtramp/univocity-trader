@@ -46,7 +46,7 @@ public class Trader {
 	final OrderListener[] notifications;
 	private int pipSize;
 	private final List<Trade> stoppedOut = new ArrayList<>();
-	private AtomicLong id = new AtomicLong(1);
+	private static final AtomicLong id = new AtomicLong(1);
 
 	/**
 	 * Creates a new trader for a given symbol. For internal use only.

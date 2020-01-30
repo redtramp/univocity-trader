@@ -71,7 +71,7 @@ public class SimulatedClientAccount implements ClientAccount {
 
 		BigDecimal locked = BigDecimal.ZERO;
 
-		Order order = null;
+		DefaultOrder order = null;
 		if (orderDetails.isBuy() && availableFunds.doubleValue() - fees >= orderAmount.doubleValue() - 0.000000001) {
 			if (orderDetails.isLong()) {
 				locked = orderDetails.getTotalOrderAmount();
@@ -101,18 +101,36 @@ public class SimulatedClientAccount implements ClientAccount {
 			orders.computeIfAbsent(order.getSymbol(), (s) -> new HashSet<>()).add(new PendingOrder(order, locked));
 		}
 
+		attachOrders(order, orderDetails);
+
 		return order;
 	}
 
-	protected DefaultOrder createOrder(String assetsSymbol, String fundSymbol, BigDecimal quantity, BigDecimal price, Order.Side orderSide, Trade.Side tradeSide, Order.Type orderType, long closeTime) {
+	private DefaultOrder createOrder(String assetsSymbol, String fundSymbol, BigDecimal quantity, BigDecimal price, Order.Side orderSide, Trade.Side tradeSide, Order.Type orderType, long closeTime) {
 		DefaultOrder out = new DefaultOrder(assetsSymbol, fundSymbol, orderSide, tradeSide, closeTime);
+		initializeOrder(out, price, quantity, orderType);
+		return out;
+	}
+
+	private void initializeOrder(DefaultOrder out, BigDecimal price, BigDecimal quantity, Order.Type orderType) {
 		out.setPrice(price);
 		out.setQuantity(quantity);
 		out.setType(orderType);
 		out.setStatus(Order.Status.NEW);
 		out.setExecutedQuantity(BigDecimal.ZERO);
 		out.setOrderId(UUID.randomUUID().toString());
-		return out;
+	}
+
+	private void attachOrders(DefaultOrder parent, OrderRequest request) {
+		List<OrderRequest> attachments = request.getAttachments();
+		if (attachments == null || attachments.isEmpty()) {
+			return;
+		}
+
+		for (OrderRequest attachment : attachments) {
+			DefaultOrder attachedOrder = new DefaultOrder(parent.getAssetsSymbol(), parent.getFundsSymbol(), attachment.getSide(), attachment.getTradeSide(), -1, parent);
+			initializeOrder(attachedOrder, attachment.getPrice(), attachment.getQuantity(), attachment.getType());
+		}
 	}
 
 	@Override
@@ -159,13 +177,55 @@ public class SimulatedClientAccount implements ClientAccount {
 			if (candle != null && !order.isFinalized()) {
 				orderFillEmulator.fillOrder((DefaultOrder) order, candle);
 			}
+
+			OrderRequest triggeredOrder = null;
+			List<OrderRequest> attachments = null;
+			if (!order.isFinalized()) {
+				//if attached order is triggered, cancel parent and submit triggered order.
+				attachments = order.getAttachments();
+				if (attachments != null && !attachments.isEmpty()) {
+					for (OrderRequest attachment : attachments) {
+						if (triggeredBy(attachment, candle)) {
+							triggeredOrder = attachment;
+							break;
+						}
+					}
+
+					if (triggeredOrder != null) {
+						order.cancel();
+					}
+				}
+			}
+
 			if (order.isFinalized()) {
 				it.remove();
 				((DefaultOrder) order).setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnOrder(order)));
 				updateBalances(order, pendingOrder.lockedAmount, candle);
+
+				if (triggeredOrder == null && attachments != null && !attachments.isEmpty()) {
+					for (OrderRequest attachment : attachments) {
+						attachment.setQuantity(order.getExecutedQuantity());
+						triggeredOrder.updateTime(candle.openTime);
+						System.out.println(">>>> EXECUTING ATTACHED ORDER " + attachment);
+						account.executeOrder(attachment); //TODO -> check if order is managed by everything
+					}
+				}
+			}
+
+			if (triggeredOrder != null && triggeredOrder.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
+				triggeredOrder.setQuantity(order.getExecutedQuantity());
+				triggeredOrder.updateTime(candle.openTime);
+				System.out.println(">>>> EXECUTING TRIGGERED ORDER " + triggeredOrder);
+				account.executeOrder(triggeredOrder);  //TODO -> check if order is managed by everything
+
 			}
 		}
 		return true;
+	}
+
+	private boolean triggeredBy(OrderRequest order, Candle candle) {
+		double priceInOrder = order.getPrice().doubleValue();
+		return candle.low >= priceInOrder || candle.high <= priceInOrder;
 	}
 
 	private void updateMarginReserve(String assetSymbol, String fundSymbol, Candle candle) {
