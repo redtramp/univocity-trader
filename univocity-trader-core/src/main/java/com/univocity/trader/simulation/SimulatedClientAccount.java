@@ -204,24 +204,31 @@ public class SimulatedClientAccount implements ClientAccount {
 
 				if (triggeredOrder == null && attachments != null && !attachments.isEmpty()) {
 					for (OrderRequest attachment : attachments) {
-						attachment.setQuantity(order.getExecutedQuantity());
-						triggeredOrder.updateTime(candle.openTime);
-						System.out.println(">>>> EXECUTING ATTACHED ORDER " + attachment);
-						account.executeOrder(attachment); //TODO -> check if order is managed by everything
+						processAttachedOrder(attachment, order.getExecutedQuantity(), candle);
 					}
 				}
 			}
 
 			if (triggeredOrder != null && triggeredOrder.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
-				triggeredOrder.setQuantity(order.getExecutedQuantity());
-				triggeredOrder.updateTime(candle.openTime);
-				System.out.println(">>>> EXECUTING TRIGGERED ORDER " + triggeredOrder);
-				account.executeOrder(triggeredOrder);  //TODO -> check if order is managed by everything
-
+				processAttachedOrder(triggeredOrder, order.getExecutedQuantity(), candle);
 			}
 		}
 		return true;
 	}
+
+	private void processAttachedOrder(OrderRequest order, BigDecimal quantity, Candle candle) {
+		if(quantity.compareTo(BigDecimal.ZERO) > 0) {
+			order.setQuantity(quantity);
+			order.updateTime(candle.openTime);
+			System.out.println(">>>> EXECUTING TRIGGERED ORDER " + order);
+			Order o = account.executeOrder(order);  //TODO -> check if order is managed by everything
+			if(o == null){
+				System.out.println("A");
+			}
+			orderFillEmulator.fillOrder((DefaultOrder) o, candle);
+		}
+	}
+
 
 	private boolean triggeredBy(OrderRequest order, Candle candle) {
 		double priceInOrder = order.getPrice().doubleValue();

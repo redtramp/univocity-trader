@@ -82,9 +82,6 @@ public class DefaultOrder extends OrderRequest implements Order {
 	}
 
 	public boolean isCancelled() {
-		if (parent != null && parent.isCancelled()) {
-			return true;
-		}
 		return this.status == Status.CANCELLED;
 	}
 
