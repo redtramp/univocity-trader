@@ -11,7 +11,6 @@ import java.util.*;
 import java.util.concurrent.*;
 
 import static com.univocity.trader.account.Balance.*;
-import static com.univocity.trader.account.Order.Side.*;
 import static com.univocity.trader.config.Allocation.*;
 
 public class SimulatedClientAccount implements ClientAccount {
@@ -87,7 +86,7 @@ public class SimulatedClientAccount implements ClientAccount {
 				locked = orderDetails.getTotalOrderAmount();
 				account.lockAmount(fundsSymbol, locked);
 			}
-			order = createOrder(assetsSymbol, fundsSymbol, quantity, unitPrice, BUY, orderDetails.getTradeSide(), orderType, orderDetails.getTime());
+			order = createOrder(orderDetails, quantity, unitPrice);
 
 		} else if (orderDetails.isSell()) {
 			if (orderDetails.isLong()) {
@@ -100,14 +99,14 @@ public class SimulatedClientAccount implements ClientAccount {
 				if (availableAssets.compareTo(quantity) >= 0) {
 					locked = orderDetails.getQuantity();
 					account.lockAmount(assetsSymbol, locked);
-					order = createOrder(assetsSymbol, fundsSymbol, quantity, unitPrice, SELL, orderDetails.getTradeSide(), orderType, orderDetails.getTime());
+					order = createOrder(orderDetails, quantity, unitPrice);
 				}
 			} else if (orderDetails.isShort()) {
 				if (availableFunds.compareTo(orderAmount) >= 0) {
 					locked = account.applyMarginReserve(orderDetails.getTotalOrderAmount()).subtract(orderDetails.getTotalOrderAmount());
 
 					account.lockAmount(fundsSymbol, locked);
-					order = createOrder(assetsSymbol, fundsSymbol, quantity, unitPrice, SELL, orderDetails.getTradeSide(), orderType, orderDetails.getTime());
+					order = createOrder(orderDetails, quantity, unitPrice);
 				}
 			}
 
@@ -122,16 +121,17 @@ public class SimulatedClientAccount implements ClientAccount {
 		return order;
 	}
 
-	private DefaultOrder createOrder(String assetsSymbol, String fundSymbol, BigDecimal quantity, BigDecimal price, Order.Side orderSide, Trade.Side tradeSide, Order.Type orderType, long closeTime) {
-		DefaultOrder out = new DefaultOrder(assetsSymbol, fundSymbol, orderSide, tradeSide, closeTime);
-		initializeOrder(out, price, quantity, orderType);
+	private DefaultOrder createOrder(OrderRequest request, BigDecimal quantity, BigDecimal price) {
+		DefaultOrder out = new DefaultOrder(request.getAssetsSymbol(), request.getFundsSymbol(), request.getSide(), request.getTradeSide(), request.getTime());
+		initializeOrder(out, price, quantity, request);
 		return out;
 	}
 
-	private void initializeOrder(DefaultOrder out, BigDecimal price, BigDecimal quantity, Order.Type orderType) {
+	private void initializeOrder(DefaultOrder out, BigDecimal price, BigDecimal quantity, OrderRequest request) {
+		out.setTriggerCondition(request.getTriggerCondition(), request.getTriggerPrice());
 		out.setPrice(price);
 		out.setQuantity(quantity);
-		out.setType(orderType);
+		out.setType(request.getType());
 		out.setStatus(Order.Status.NEW);
 		out.setExecutedQuantity(BigDecimal.ZERO);
 		out.setOrderId(UUID.randomUUID().toString());
@@ -144,8 +144,8 @@ public class SimulatedClientAccount implements ClientAccount {
 		}
 
 		for (OrderRequest attachment : attachments) {
-			DefaultOrder attachedOrder = new DefaultOrder(parent.getAssetsSymbol(), parent.getFundsSymbol(), attachment.getSide(), attachment.getTradeSide(), -1, parent);
-			initializeOrder(attachedOrder, attachment.getPrice(), attachment.getQuantity(), attachment.getType());
+			DefaultOrder attachedOrder = new DefaultOrder(parent, attachment.getSide(), attachment.getTradeSide(), -1);
+			initializeOrder(attachedOrder, attachment.getPrice(), attachment.getQuantity(), attachment);
 		}
 	}
 
@@ -179,6 +179,19 @@ public class SimulatedClientAccount implements ClientAccount {
 		return true;
 	}
 
+	private void activateAndTryFill(Candle candle, Order order) {
+		if (candle != null && order != null) {
+			if (!order.isActive()) {
+				if (triggeredBy(order, null, candle)) {
+					((DefaultOrder) order).activate();
+				}
+			}
+			if (order.isActive()) {
+				orderFillEmulator.fillOrder((DefaultOrder) order, candle);
+			}
+		}
+	}
+
 	@Override
 	public final synchronized boolean updateOpenOrders(String symbol, Candle candle) {
 		Set<PendingOrder> s = orders.get(symbol);
@@ -190,18 +203,15 @@ public class SimulatedClientAccount implements ClientAccount {
 			PendingOrder pendingOrder = it.next();
 			Order order = pendingOrder.order;
 
-			if (candle != null && !order.isFinalized()) {
-				orderFillEmulator.fillOrder((DefaultOrder) order, candle);
-			}
+			activateAndTryFill(candle, order);
 
 			OrderRequest triggeredOrder = null;
-			List<OrderRequest> attachments = null;
-			if (!order.isFinalized()) {
+			if (!order.isFinalized() && order.getFillPct() > 0.0) {
 				//if attached order is triggered, cancel parent and submit triggered order.
-				attachments = order.getAttachments();
+				List<OrderRequest> attachments = order.getAttachments();
 				if (attachments != null && !attachments.isEmpty()) {
 					for (OrderRequest attachment : attachments) {
-						if (triggeredBy(attachment, candle)) {
+						if (triggeredBy(order, attachment, candle)) {
 							triggeredOrder = attachment;
 							break;
 						}
@@ -215,9 +225,10 @@ public class SimulatedClientAccount implements ClientAccount {
 
 			if (order.isFinalized()) {
 				it.remove();
-				((DefaultOrder) order).setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnOrder(order)));
+				((DefaultOrder) order).setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
 				updateBalances(order, pendingOrder.lockedAmount, candle);
 
+				List<OrderRequest> attachments = order.getAttachments();
 				if (triggeredOrder == null && attachments != null && !attachments.isEmpty()) {
 					for (OrderRequest attachment : attachments) {
 						processAttachedOrder(attachment, order.getExecutedQuantity(), candle);
@@ -233,25 +244,43 @@ public class SimulatedClientAccount implements ClientAccount {
 	}
 
 	private void processAttachedOrder(OrderRequest order, BigDecimal quantity, Candle candle) {
-		if (quantity.compareTo(BigDecimal.ZERO) > 0) {
-//			order.setQuantity(quantity);
-//			order.updateTime(candle.openTime);
-//			System.out.println(">>>> EXECUTING TRIGGERED ORDER " + order);
-//			Order o = account.executeOrder(order);  //TODO -> check if order is managed by everything
-//			if (o == null) {
-//				System.out.println("A");
-//			}
-//			orderFillEmulator.fillOrder((DefaultOrder) o, candle);
+		if (candle != null && quantity.compareTo(BigDecimal.ZERO) > 0) {
+			order.setQuantity(quantity);
+			order.updateTime(candle.openTime);
+			Order o = account.executeOrder(order);  //TODO -> check if order is managed by everything
+			activateAndTryFill(candle, o);
 		}
 	}
 
 
-	private boolean triggeredBy(OrderRequest order, Candle candle) {
-		if(candle == null){
+	private boolean triggeredBy(Order parent, OrderRequest attachment, Candle candle) {
+		if (candle == null) {
 			return false;
 		}
-		double priceInOrder = order.getPrice().doubleValue();
-		return candle.low >= priceInOrder || candle.high <= priceInOrder;
+
+		BigDecimal triggerPrice;
+		if (attachment == null) {
+			if (parent.getTriggerCondition() == Order.TriggerCondition.NONE) {
+				return false;
+			}
+			triggerPrice = parent.getTriggerPrice();
+		} else {
+			triggerPrice = (attachment.getTriggerPrice() != null) ? attachment.getTriggerPrice() : attachment.getPrice();
+		}
+		if (triggerPrice == null) {
+			return false;
+		}
+
+		double conditionalPrice = triggerPrice.doubleValue();
+		double parentPrice = parent.getAveragePrice().doubleValue();
+
+		boolean out;
+		if (parentPrice > conditionalPrice) { //waiting for price to move down
+			out = candle.high <= conditionalPrice; //high of handle hits target price on the downside, stopped
+		} else { //waiting for price to move up
+			out = conditionalPrice >= candle.low && conditionalPrice <= candle.high; //price hits on the low of the candle, exit
+		}
+		return out;
 	}
 
 	private void updateMarginReserve(String assetSymbol, String fundSymbol, Candle candle) {

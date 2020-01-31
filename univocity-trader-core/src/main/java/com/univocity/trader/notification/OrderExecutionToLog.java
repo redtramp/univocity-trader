@@ -55,7 +55,10 @@ public class OrderExecutionToLog implements OrderListener {
 			}
 			price = StringUtils.rightPad(price, maxPriceLength);
 
-			String details = StringUtils.rightPad(o.closeTime.toString(), 25) + " " + StringUtils.rightPad(o.assetSymbol, 8) + " " + type + " " + quantity + " @ $" + price;
+			String trigger = StringUtils.rightPad(o.trigger.shortName, 3);
+
+			String details = StringUtils.rightPad(o.closeTime.toString(), 25) + " " + StringUtils.rightPad(o.assetSymbol, 8) + " " + trigger + type + " " + quantity + " @ $" + price;
+
 //			details += "[" + order.getOrderId() + "]";
 			if (order.isLongBuy() || order.isShortSell()) {
 				if (order.isFinalized()) {

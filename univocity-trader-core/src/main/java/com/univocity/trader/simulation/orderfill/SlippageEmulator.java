@@ -153,9 +153,10 @@ public class SlippageEmulator implements OrderFillEmulator {
 			} else if (order.isLimit()) {
 				if (order.isBuy() && candle.high < order.getPrice().doubleValue()) {
 					updatePrice(order, candle.high, tradedVolume);
-				}
-				if (order.isSell() && candle.low > order.getPrice().doubleValue()) {
+				} else if (order.isSell() && candle.low > order.getPrice().doubleValue()) {
 					updatePrice(order, candle.low, tradedVolume);
+				} else {
+					updatePrice(order, -1, tradedVolume);
 				}
 			}
 			order.setExecutedQuantity(BigDecimal.valueOf(executed));
@@ -178,9 +179,16 @@ public class SlippageEmulator implements OrderFillEmulator {
 		double currentPrice = order.getPrice().doubleValue();
 		double currentExecuted = order.getExecutedQuantity().doubleValue();
 
+		if (price == -1) {
+			price = order.getPrice().doubleValue();
+		}
+
 		double averagePrice = ((currentPrice * currentExecuted) + (price * tradedVolume)) / (currentExecuted + tradedVolume);
 
-		order.setPrice(BigDecimal.valueOf(averagePrice));
+		if (order.isMarket()) {
+			order.setPrice(BigDecimal.valueOf(averagePrice));
+		}
+		order.setAveragePrice(BigDecimal.valueOf(averagePrice));
 	}
 
 }

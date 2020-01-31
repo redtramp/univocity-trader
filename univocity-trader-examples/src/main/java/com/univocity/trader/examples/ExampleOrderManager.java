@@ -15,8 +15,8 @@ public class ExampleOrderManager extends DefaultOrderManager {
 	public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
 		if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
 			//attached orders are created with opposite side. If parent order is BUY, the following orders will be SELL orders, and vice versa.
-			OrderRequest marketSellOnLoss = order.attach(LIMIT, -2.0);
-			OrderRequest takeProfit = order.attach(MARKET, 5.0);
+			OrderRequest marketSellOnLoss = order.attach(LIMIT, -1.0);
+			OrderRequest takeProfit = order.attach(MARKET, 1.0);
 		}
 	}
 }

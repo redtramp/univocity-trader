@@ -7,8 +7,10 @@ import com.univocity.trader.indicators.*;
 import com.univocity.trader.simulation.*;
 import org.junit.*;
 
+import java.math.*;
 import java.util.*;
 
+import static com.univocity.trader.account.Trade.Side.*;
 import static com.univocity.trader.indicators.Signal.*;
 import static junit.framework.TestCase.*;
 
@@ -48,28 +50,28 @@ public class AccountManagerTest {
 		account.setAmount("USDT", 350);
 		cfg.maximumInvestmentAmountPerAsset(20.0);
 
-		double funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		double funds = account.allocateFunds("ADA", LONG);
 		assertEquals(funds, 19.98, 0.001);
 
 		cfg.maximumInvestmentPercentagePerAsset(2.0);
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(funds, 7.992, 0.001);
 
 		cfg.maximumInvestmentAmountPerTrade(6);
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(funds, 5.994, 0.001);
 
 		cfg.maximumInvestmentPercentagePerTrade(1.0);
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(funds, 3.996, 0.001);
 
 		cfg.maximumInvestmentAmountPerTrade(3);
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(funds, 2.997, 0.001);
 
 
 		cfg.minimumInvestmentAmountPerTrade(10);
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(funds, 0.0, 0.001);
 
 	}
@@ -81,25 +83,25 @@ public class AccountManagerTest {
 		account.setAmount("USDT", 100);
 		account.configuration().maximumInvestmentPercentagePerAsset(90.0);
 
-		double funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		double funds = account.allocateFunds("ADA", LONG);
 		assertEquals(99.9, funds, 0.001);
 
 		account.setAmount("USDT", 50);
 		account.setAmount("ADA", 50 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(49.95, funds, 0.001);
 
 		account.setAmount("USDT", 10);
 		account.setAmount("ADA", 90 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(9.99, funds, 0.001);
 
 		account.setAmount("USDT", 0);
 		account.setAmount("ADA", 100 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(0.0, funds, 0.001);
 	}
 
@@ -110,19 +112,19 @@ public class AccountManagerTest {
 		account.setAmount("USDT", 100);
 		account.configuration().maximumInvestmentAmountPerAsset(60.0);
 
-		double funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		double funds = account.allocateFunds("ADA", LONG);
 		assertEquals(59.94, funds, 0.001);
 
 		account.setAmount("USDT", 50);
 		account.setAmount("ADA", 50 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(9.99, funds, 0.001);
 
 		account.setAmount("USDT", 10);
 		account.setAmount("ADA", 90 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(0.0, funds, 0.001);
 	}
 
@@ -133,25 +135,25 @@ public class AccountManagerTest {
 		account.setAmount("USDT", 100);
 		account.configuration().maximumInvestmentPercentagePerTrade(40.0);
 
-		double funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		double funds = account.allocateFunds("ADA", LONG);
 		assertEquals(59.94, funds, 0.001); //total funds = 150: 100 USDT + 1 BNB (worth 50 USDT).
 
 		account.setAmount("USDT", 60);
 		account.setAmount("ADA", 40 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(59.94, funds, 0.001);
 
 		account.setAmount("USDT", 20);
 		account.setAmount("ADA", 80 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		;
 		assertEquals(19.98, funds, 0.001);
 		account.setAmount("USDT", 0);
 		account.setAmount("ADA", 100 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(0.0, funds, 0.001);
 	}
 
@@ -162,25 +164,25 @@ public class AccountManagerTest {
 		account.setAmount("USDT", 100);
 		account.configuration().maximumInvestmentAmountPerTrade(40.0);
 
-		double funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		double funds = account.allocateFunds("ADA", LONG);
 		assertEquals(39.96, funds, 0.001);
 
 		account.setAmount("USDT", 60);
 		account.setAmount("ADA", 40 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		assertEquals(39.96, funds, 0.001);
 
 		account.setAmount("USDT", 20);
 		account.setAmount("ADA", 80 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		;
 		assertEquals(19.98, funds, 0.001);
 		account.setAmount("USDT", 0);
 		account.setAmount("ADA", 100 / CLOSE);
 
-		funds = account.allocateFunds("ADA", Trade.Side.LONG);
+		funds = account.allocateFunds("ADA", LONG);
 		;
 		assertEquals(0.0, funds, 0.001);
 	}
@@ -487,6 +489,47 @@ public class AccountManagerTest {
 		//profit/loss includes fees.
 		assertEquals(150.0 - 11.31, trader.holdings(), 0.001);
 
+	}
+
+	@Test
+	public void testLongPositionTradingWithStopLoss() {
+		AccountManager account = getAccountManager();
+
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 1, 1.0, BUY);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, MAX, 0.0, 1.0, 1.0, 1.0);
+		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
+		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
+
+		usdBalance = account.getAmount("USDT");
+
+		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.SELL, LONG, 2, null);
+		or.setQuantity(BigDecimal.valueOf(quantity1));
+		or.setTriggerCondition(Order.TriggerCondition.STOP_LOSS, new BigDecimal("0.9"));
+		Order o = account.executeOrder(or);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.95));
+		assertEquals(Order.Status.NEW, o.getStatus());
+		assertFalse(o.isActive());
+		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
+
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.8999));
+		assertEquals(Order.Status.NEW, o.getStatus());
+		assertTrue(o.isActive());
+		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
 	}
 
 }

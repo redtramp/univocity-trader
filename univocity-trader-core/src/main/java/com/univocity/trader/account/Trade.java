@@ -444,7 +444,7 @@ public class Trade implements Comparable<Trade> {
 				exitOrders.clear();
 			} else {
 				double totalSold = order.getTotalTraded().doubleValue();
-				double sellPrice = order.getPrice().doubleValue();
+				double sellPrice = order.getAveragePrice().doubleValue();
 
 				updateAveragePrice(position.values());
 

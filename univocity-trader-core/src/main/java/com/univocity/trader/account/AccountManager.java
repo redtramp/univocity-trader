@@ -645,7 +645,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 					order.getQuantity(),
 					order.getExecutedQuantity().setScale(8, RoundingMode.FLOOR).toPlainString(),
 					order.getAssetsSymbol(),
-					order.getPrice().setScale(8, RoundingMode.FLOOR).toPlainString(),
+					order.getAveragePrice().setScale(8, RoundingMode.FLOOR).toPlainString(),
 					order.getFundsSymbol(),
 					TimeInterval.getFormattedDuration(System.currentTimeMillis() - order.getTime()),
 					order.getOrderId(),

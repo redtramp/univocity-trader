@@ -116,6 +116,9 @@ public class SymbolPriceDetails {
 	}
 
 	public static String toString(int decimals, BigDecimal value) {
+		if(value == null){
+			return null;
+		}
 		return value.setScale(decimals, RoundingMode.FLOOR).toPlainString();
 	}
 

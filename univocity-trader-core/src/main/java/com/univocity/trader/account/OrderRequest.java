@@ -7,6 +7,7 @@ import java.util.*;
 
 import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.account.Order.Side.*;
+import static com.univocity.trader.account.Order.TriggerCondition.*;
 
 public class OrderRequest {
 
@@ -18,13 +19,25 @@ public class OrderRequest {
 	private long time;
 	private final Order resubmittedFrom;
 
+	private BigDecimal triggerPrice;
+	private Order.TriggerCondition triggerCondition = NONE;
+
 	private BigDecimal price = BigDecimal.ZERO;
 	private BigDecimal quantity = BigDecimal.ZERO;
 	private Order.Type type = Order.Type.LIMIT;
+	private boolean active = true;
+
+	private Order parent;
 
 	protected List<OrderRequest> attachments = new ArrayList<>();
 
+	public OrderRequest(Order parent, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
+		this(parent.getAssetsSymbol(), parent.getFundsSymbol(), side, tradeSide, time, resubmittedFrom);
+		this.parent = parent;
+	}
+
 	public OrderRequest(String assetsSymbol, String fundsSymbol, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
+		this.parent = null;
 		this.resubmittedFrom = resubmittedFrom;
 		this.time = time;
 		if (StringUtils.isBlank(assetsSymbol)) {
@@ -98,10 +111,12 @@ public class OrderRequest {
 	public String toString() {
 		return "OrderPreparation{" +
 				"symbol='" + getSymbol() + '\'' +
+				(triggerCondition == NONE ? "" : ", {" + triggerCondition + "@" + triggerPrice + "}") +
+				", type=" + type +
+				", tradeSide=" + tradeSide +
 				", side=" + side +
 				", price=" + price +
 				", quantity=" + quantity +
-				", type=" + type +
 				'}';
 	}
 
@@ -145,6 +160,32 @@ public class OrderRequest {
 		return attachments == null ? null : Collections.unmodifiableList(attachments);
 	}
 
+	public final Order getParent() {
+		return parent;
+	}
+
+	public final Order.TriggerCondition getTriggerCondition() {
+		return this.triggerCondition;
+	}
+
+	public final BigDecimal getTriggerPrice() {
+		return this.triggerPrice;
+	}
+
+	public final void setTriggerCondition(Order.TriggerCondition triggerCondition, BigDecimal triggerPrice) {
+		this.triggerCondition = triggerCondition;
+		this.triggerPrice = triggerPrice;
+		this.active = !(triggerCondition != Order.TriggerCondition.NONE && triggerPrice != null);
+	}
+
+	public final void activate() {
+		active = true;
+	}
+
+	public final boolean isActive() {
+		return active && !isCancelled();
+	}
+
 	public OrderRequest attach(Order.Type type, double change) {
 		if (attachments == null) {
 			throw new IllegalArgumentException("Can only attach orders to the parent order");
@@ -156,6 +197,16 @@ public class OrderRequest {
 		this.attachments.add(attachment);
 		attachment.setQuantity(this.quantity);
 		attachment.setPrice(this.price.multiply(BigDecimal.valueOf(1.0 + (change / 100.0))));
+		attachment.setType(type);
+
+		if (this.tradeSide == Trade.Side.LONG && change < 0.0) {
+			attachment.setTriggerCondition(STOP_LOSS, attachment.getPrice());
+		}
+
+		if (this.tradeSide == Trade.Side.SHORT && change > 0.0) {
+			attachment.setTriggerCondition(STOP_GAIN, attachment.getPrice());
+		}
+
 		return attachment;
 	}
 }

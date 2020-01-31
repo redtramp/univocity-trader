@@ -11,21 +11,18 @@ public class DefaultOrder extends OrderRequest implements Order {
 	private BigDecimal executedQuantity;
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
-	private Order parent;
+	private BigDecimal averagePrice = BigDecimal.ZERO;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
-		this(assetSymbol, fundSymbol, side, tradeSide, time, (DefaultOrder) null);
+		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
 	}
 
-	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time, DefaultOrder parent) {
-		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
-		if (parent != null) {
-			this.parent = parent;
-			if (parent.attachments == null) {
-				parent.attachments = new ArrayList<>();
-			}
-			parent.attachments.add(this);
+	public DefaultOrder(DefaultOrder parent, Order.Side side, Trade.Side tradeSide, long time) {
+		super(parent, side, tradeSide, time, null);
+		if (parent.attachments == null) {
+			parent.attachments = new ArrayList<>();
 		}
+		parent.attachments.add(this);
 	}
 
 	public DefaultOrder(Order order) {
@@ -76,7 +73,7 @@ public class DefaultOrder extends OrderRequest implements Order {
 
 	@Override
 	public void cancel() {
-		if(this.status != Status.FILLED) {
+		if (this.status != Status.FILLED) {
 			this.status = Status.CANCELLED;
 		}
 	}
@@ -99,7 +96,12 @@ public class DefaultOrder extends OrderRequest implements Order {
 		return print(0);
 	}
 
-	public final Order getParent() {
-		return parent;
+	public void setAveragePrice(BigDecimal averagePrice) {
+		this.averagePrice = round(averagePrice);
+	}
+
+	@Override
+	public final BigDecimal getAveragePrice() {
+		return averagePrice;
 	}
 }

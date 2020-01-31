@@ -38,6 +38,8 @@ public class OrderExecutionLine {
 	@Parsed
 	String price;
 	@Parsed
+	String averagePrice;
+	@Parsed
 	String priceChangePct;
 	@Parsed
 	String quantity;
@@ -75,6 +77,10 @@ public class OrderExecutionLine {
 	String duration;
 	@Parsed
 	String orderFillPercentage;
+	@Parsed
+	Order.TriggerCondition trigger;
+	@Parsed
+	String triggerPrice;
 
 	double fillPct;
 	boolean isShort;
@@ -105,6 +111,7 @@ public class OrderExecutionLine {
 			marginReserve = amountDetails.priceToString(balance.getMarginReserve(trader.assetSymbol()));
 			valueTransacted = amountDetails.priceToString(order.getTotalTraded());
 			price = order.isBuy() ? amountDetails.priceToString(order.getPrice()) : price;
+			averagePrice = amountDetails.priceToString(order.getAveragePrice());
 
 			orderId = order.getOrderId();
 			quantity = priceDetails.quantityToString(order.getQuantity());
@@ -122,14 +129,15 @@ public class OrderExecutionLine {
 			} else {
 				orderAmount = amountDetails.priceToString(order.getTotalOrderAmount());
 			}
-
+			this.trigger = order.getTriggerCondition();
+			this.triggerPrice = priceDetails.priceToString(order.getTriggerPrice());
 		} else {
 			operation = "END";
 		}
 		if (trade != null) {
 			tradeId = trade.id();
 			priceChangePct = trade.formattedPriceChangePct();
-			if(trade.isFinalized()) {
+			if (trade.isFinalized()) {
 				profitLoss = priceDetails.priceToString(trade.actualProfitLoss());
 				profitLossPct = trade.formattedProfitLossPct();
 				profitLossReferenceCurrency = refPriceDetails.priceToString(trade.actualProfitLossInReferenceCurrency());

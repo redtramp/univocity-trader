@@ -7,6 +7,7 @@ import java.util.*;
 
 import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.account.Order.Status.*;
+import static com.univocity.trader.account.Order.TriggerCondition.*;
 import static com.univocity.trader.candles.Candle.*;
 
 public interface Order {
@@ -31,6 +32,8 @@ public interface Order {
 
 	BigDecimal getPrice();
 
+	BigDecimal getAveragePrice();
+
 	BigDecimal getQuantity();
 
 	BigDecimal getExecutedQuantity();
@@ -43,17 +46,23 @@ public interface Order {
 
 	Type getType();
 
+	TriggerCondition getTriggerCondition();
+
+	BigDecimal getTriggerPrice();
+
+	boolean isActive();
+
 	long getTime();
 
 	Status getStatus();
 
 	void cancel();
 
-	default Order getParent(){
+	default Order getParent() {
 		return null;
 	}
 
-	default List<OrderRequest> getAttachments(){
+	default List<OrderRequest> getAttachments() {
 		return Collections.emptyList();
 	}
 
@@ -66,7 +75,7 @@ public interface Order {
 	}
 
 	default BigDecimal getTotalTraded() {
-		return round(getExecutedQuantity().multiply(getPrice()));
+		return round(getExecutedQuantity().multiply(getAveragePrice()));
 	}
 
 	default BigDecimal getTotalOrderAmount() {
@@ -120,10 +129,17 @@ public interface Order {
 	default String print(long latestClose) {
 		StringBuilder description = new StringBuilder();
 
-		description
-				.append(getStatus()).append(' ')
-				.append(getType()).append(' ');
+		description.append(getStatus()).append(' ');
 
+		if (getTriggerCondition() != NONE) {
+			description
+					.append(getTriggerCondition())
+					.append("[")
+					.append(roundStr(getTriggerPrice()))
+					.append(']').append(' ');
+		}
+
+		description.append(getType()).append(' ');
 
 		if (isShort()) {
 			description.append(getTradeSide()).append(' ');
@@ -211,6 +227,17 @@ public interface Order {
 	enum Type {
 		LIMIT,
 		MARKET
+	}
+
+	enum TriggerCondition {
+		NONE(""),
+		STOP_LOSS("SL"),
+		STOP_GAIN("SG");
+
+		public final String shortName;
+		TriggerCondition(String shortName){
+			this.shortName = shortName;
+		}
 	}
 
 	enum Status {

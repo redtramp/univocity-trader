@@ -119,6 +119,7 @@ class BinanceClientAccount implements ClientAccount {
 		DefaultOrder out = new DefaultOrder(preparation.getAssetsSymbol(), preparation.getFundsSymbol(), translate(response.getSide()), Trade.Side.LONG, response.getTime());
 
 		out.setPrice(new BigDecimal(response.getPrice()));
+		out.setAveragePrice(new BigDecimal(response.getPrice()));
 		out.setQuantity(new BigDecimal(response.getOrigQty()));
 		out.setExecutedQuantity(new BigDecimal(response.getExecutedQty()));
 		out.setOrderId(String.valueOf(response.getOrderId()));
@@ -197,6 +198,7 @@ class BinanceClientAccount implements ClientAccount {
 		DefaultOrder out = new DefaultOrder(original.getAssetsSymbol(), original.getFundsSymbol(), translate(order.getSide()), Trade.Side.LONG, order.getTime());
 		out.setStatus(translate(order.getStatus()));
 		out.setExecutedQuantity(new BigDecimal(order.getExecutedQty()));
+		out.setAveragePrice(new BigDecimal(order.getPrice()));
 		out.setPrice(new BigDecimal(order.getPrice()));
 		out.setOrderId(String.valueOf(order.getOrderId()));
 		out.setType(translate(order.getType()));
