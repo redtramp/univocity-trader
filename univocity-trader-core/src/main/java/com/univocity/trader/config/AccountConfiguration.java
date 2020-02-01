@@ -77,7 +77,7 @@ public abstract class AccountConfiguration<T extends AccountConfiguration<T>> im
 			email = properties.getOptionalProperty(accountId + "email");
 			referenceCurrency = properties.getProperty(accountId + "reference.currency");
 			shortingEnabled = properties.getBoolean(accountId + "enable.shorting", false);
-			marginReservePercentage = properties.getInteger(accountId +"margin.reserve.percentage", 150);
+			marginReservePercentage = properties.getInteger(accountId + "margin.reserve.percentage", 150);
 
 			String tz = properties.getOptionalProperty(accountId + "timezone");
 			timeZone = getTimeZone(tz);
@@ -422,6 +422,9 @@ public abstract class AccountConfiguration<T extends AccountConfiguration<T>> im
 	public T orderManager(OrderManager orderManager, String... symbols) {
 		if (symbols.length == 0) {
 			symbols = tradedPairs.keySet().toArray(new String[0]);
+		}
+		if (symbols.length == 0) {
+			throw new IllegalArgumentException("Can't associate order manager " + orderManager + " before configuring the trading symbols to be used");
 		}
 		for (String symbol : symbols) {
 			this.orderManagers.put(symbol, orderManager);

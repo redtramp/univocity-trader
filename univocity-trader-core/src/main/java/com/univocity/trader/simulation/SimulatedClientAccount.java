@@ -21,6 +21,8 @@ public class SimulatedClientAccount implements ClientAccount {
 	private OrderFillEmulator orderFillEmulator;
 	private final int marginReservePercentage;
 
+	private Map<String, BigDecimal> sharedFunds = new ConcurrentHashMap<>();
+
 	private static class PendingOrder implements Comparable<PendingOrder> {
 		final Order order;
 		final BigDecimal lockedAmount;
@@ -231,6 +233,7 @@ public class SimulatedClientAccount implements ClientAccount {
 				List<OrderRequest> attachments = order.getAttachments();
 				if (triggeredOrder == null && attachments != null && !attachments.isEmpty()) {
 					for (OrderRequest attachment : attachments) {
+
 						processAttachedOrder(attachment, order.getExecutedQuantity(), candle);
 					}
 				}
@@ -245,9 +248,14 @@ public class SimulatedClientAccount implements ClientAccount {
 
 	private void processAttachedOrder(OrderRequest order, BigDecimal quantity, Candle candle) {
 		if (candle != null && quantity.compareTo(BigDecimal.ZERO) > 0) {
+			String parentId = order.getParent().getOrderId();
+			BigDecimal shared = sharedFunds.get(parentId);
 			order.setQuantity(quantity);
 			order.updateTime(candle.openTime);
-			Order o = account.executeOrder(order);  //TODO -> check if order is managed by everything
+			Order o = account.executeOrder(order, shared);  //TODO -> check if order is managed by everything
+			if(o != null){
+				sharedFunds.put(parentId, o.getQuantity());
+			}
 			activateAndTryFill(candle, o);
 		}
 	}

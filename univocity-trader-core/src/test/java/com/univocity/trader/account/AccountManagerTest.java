@@ -10,6 +10,7 @@ import org.junit.*;
 import java.math.*;
 import java.util.*;
 
+import static com.univocity.trader.account.Order.Type.*;
 import static com.univocity.trader.account.Trade.Side.*;
 import static com.univocity.trader.indicators.Signal.*;
 import static junit.framework.TestCase.*;
@@ -18,13 +19,24 @@ public class AccountManagerTest {
 
 	private static final double CLOSE = 0.4379;
 
-	private AccountManager getAccountManager() {
+	private AccountManager getAccountManager(){
+		return getAccountManager(null);
+	}
+
+	private AccountManager getAccountManager(OrderManager orderManager) {
 		SimulationConfiguration configuration = new SimulationConfiguration();
+
 		SimulationAccount accountCfg = new SimulationConfiguration().account();
 		accountCfg
 				.referenceCurrency("USDT")
 				.tradeWithPair("ADA", "BNB")
+				.tradeWith("ADA", "BNB")
 				.enableShorting();
+
+		if(orderManager != null) {
+			accountCfg.orderManager(orderManager);
+		}
+
 
 		SimulatedClientAccount clientAccount = new SimulatedClientAccount(accountCfg, configuration.simulation());
 		AccountManager account = clientAccount.getAccount();
@@ -583,6 +595,38 @@ public class AccountManagerTest {
 
 		assertEquals(2 * MAX * 0.999 * 0.999 * 0.9999, account.getAmount("ADA"), 0.001);
 		assertEquals(previousUsdBalance - (((MAX * 0.9999 /*quantity offset*/) * 0.8 /*price*/) * 0.999 /*fees*/), account.getAmount("USDT"), 0.001);
+	}
+
+	@Test
+	public void testTradingWithBracketOrder() {
+		AccountManager account = getAccountManager(new DefaultOrderManager() {
+			@Override
+			public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
+				if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
+					OrderRequest marketSellOnLoss = order.attach(MARKET, -1.0);
+					OrderRequest takeProfit = order.attach(MARKET, 1.0);
+				}
+			}
+		});
+
+
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 1, 1.0, BUY);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, MAX, 0.0, 1.0, 1.0, 1.0);
+		usdBalance = account.getAmount("USDT");
+
+		Order parent = trade.position().iterator().next();
+		assertEquals(2, parent.getAttachments().size());
 	}
 
 }
