@@ -176,6 +176,9 @@ public class OrderRequest {
 		this.triggerCondition = triggerCondition;
 		this.triggerPrice = triggerPrice;
 		this.active = !(triggerCondition != Order.TriggerCondition.NONE && triggerPrice != null);
+		if (this.price.equals(BigDecimal.ZERO)) {
+			this.price = triggerPrice;
+		}
 	}
 
 	public final void activate() {

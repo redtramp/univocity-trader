@@ -492,7 +492,7 @@ public class AccountManagerTest {
 	}
 
 	@Test
-	public void testLongPositionTradingWithStopLoss() {
+	public void testTradingWithStopLoss() {
 		AccountManager account = getAccountManager();
 
 		final double MAX = 40.0;
@@ -518,18 +518,71 @@ public class AccountManagerTest {
 		or.setTriggerCondition(Order.TriggerCondition.STOP_LOSS, new BigDecimal("0.9"));
 		Order o = account.executeOrder(or);
 
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.95));
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 1.5));
 		assertEquals(Order.Status.NEW, o.getStatus());
 		assertFalse(o.isActive());
-		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
-		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
-
+		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.8999));
 		assertEquals(Order.Status.NEW, o.getStatus());
 		assertTrue(o.isActive());
-		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.92));
+		assertEquals(Order.Status.FILLED, o.getStatus());
+		assertTrue(o.isActive());
+		assertEquals(0.0, account.getAmount("ADA"), 0.001);
+		assertEquals(usdBalance + ((o.getExecutedQuantity().doubleValue() /*quantity*/) * 0.92 /*price*/) * 0.999 /*fees*/, account.getAmount("USDT"), 0.001);
+	}
+
+	@Test
+	public void testTradingWithStopGain() {
+		AccountManager account = getAccountManager();
+
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 1, 1.0, BUY);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, MAX, 0.0, 1.0, 1.0, 1.0);
+		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
 		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
+
+		usdBalance = account.getAmount("USDT");
+		assertEquals(initialBalance - ((MAX * 0.9999 /*quantity offset*/) * 0.999 /*fees*/), usdBalance, 0.001);
+		assertEquals(60.044, usdBalance, 0.001);
+		assertEquals(MAX * 0.999 * 0.999 * 0.9999, account.getAmount("ADA"), 0.001);
+
+		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.BUY, LONG, 2, null);
+		or.setQuantity(BigDecimal.valueOf(quantity1));
+		or.setTriggerCondition(Order.TriggerCondition.STOP_GAIN, new BigDecimal("1.2"));
+		Order o = account.executeOrder(or);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.8999));
+		assertEquals(Order.Status.NEW, o.getStatus());
+		assertFalse(o.isActive());
+		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 1.5));
+		assertTrue(o.isActive());
+		assertEquals(Order.Status.NEW, o.getStatus()); //can't fill because price is too high and we want to pay 1.2
+		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+
+
+		double previousUsdBalance = usdBalance;
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(5, 0.8));
+		assertTrue(o.isActive());
+		assertEquals(Order.Status.FILLED, o.getStatus());
+
+		assertEquals(2 * MAX * 0.999 * 0.999 * 0.9999, account.getAmount("ADA"), 0.001);
+		assertEquals(previousUsdBalance - (((MAX * 0.9999 /*quantity offset*/) * 0.8 /*price*/) * 0.999 /*fees*/), account.getAmount("USDT"), 0.001);
 	}
 
 }

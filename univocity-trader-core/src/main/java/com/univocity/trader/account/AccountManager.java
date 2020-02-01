@@ -285,11 +285,12 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 			out = Math.min(out, maxAmountPerTrade);
 		}
 
-		if (out < minimumInvestment) {
-			out = 0.0;
-		}
+		out = getTradingFees().takeFee(out, Order.Type.LIMIT, SELL);
 
-		return out > 0.0 ? getTradingFees().takeFee(out, Order.Type.LIMIT, SELL) : 0.0;
+		if (out < minimumInvestment) {
+			return 0.0;
+		}
+		return out;
 	}
 
 	public double allocateFunds(String assetSymbol, Trade.Side tradeSide) {

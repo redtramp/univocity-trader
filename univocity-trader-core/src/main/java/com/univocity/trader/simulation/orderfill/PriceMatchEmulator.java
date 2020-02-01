@@ -35,7 +35,15 @@ public class PriceMatchEmulator implements OrderFillEmulator {
 					|| (order.getSide() == SELL && order.getPrice().compareTo(round(BigDecimal.valueOf(candle.high))) <= 0)) {
 				order.setStatus(Order.Status.FILLED);
 				order.setExecutedQuantity(order.getQuantity());
-				order.setAveragePrice(order.getPrice());
+
+				double orderPrice = order.getPrice().doubleValue();
+				if (order.isBuy() && candle.high < orderPrice) {
+					order.setAveragePrice(BigDecimal.valueOf(candle.high));
+				} else if (order.isSell() && candle.low > orderPrice) {
+					order.setAveragePrice(BigDecimal.valueOf(candle.low));
+				} else {
+					order.setAveragePrice(order.getPrice());
+				}
 			}
 		} else if (order.getType() == MARKET) {
 			order.setStatus(Order.Status.FILLED);

@@ -259,28 +259,30 @@ public class SimulatedClientAccount implements ClientAccount {
 		}
 
 		BigDecimal triggerPrice;
+		Order.TriggerCondition trigger;
 		if (attachment == null) {
 			if (parent.getTriggerCondition() == Order.TriggerCondition.NONE) {
 				return false;
 			}
 			triggerPrice = parent.getTriggerPrice();
+			trigger = parent.getTriggerCondition();
 		} else {
 			triggerPrice = (attachment.getTriggerPrice() != null) ? attachment.getTriggerPrice() : attachment.getPrice();
+			trigger = attachment.getTriggerCondition();
 		}
 		if (triggerPrice == null) {
 			return false;
 		}
 
 		double conditionalPrice = triggerPrice.doubleValue();
-		double parentPrice = parent.getAveragePrice().doubleValue();
 
-		boolean out;
-		if (parentPrice > conditionalPrice) { //waiting for price to move down
-			out = candle.high <= conditionalPrice; //high of handle hits target price on the downside, stopped
-		} else { //waiting for price to move up
-			out = conditionalPrice >= candle.low && conditionalPrice <= candle.high; //price hits on the low of the candle, exit
+		switch (trigger) {
+			case STOP_GAIN:
+				return candle.low >= conditionalPrice;
+			case STOP_LOSS:
+				return candle.high <= conditionalPrice;
 		}
-		return out;
+		return false;
 	}
 
 	private void updateMarginReserve(String assetSymbol, String fundSymbol, Candle candle) {
