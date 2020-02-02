@@ -62,7 +62,7 @@ public interface Order {
 		return null;
 	}
 
-	default List<OrderRequest> getAttachments() {
+	default List<Order> getAttachments() {
 		return Collections.emptyList();
 	}
 
@@ -84,6 +84,10 @@ public interface Order {
 
 	default boolean isFinalized() {
 		return getStatus() == FILLED || getStatus() == Status.CANCELLED;
+	}
+
+	default String getParentOrderId() {
+		return getParent() == null ? "" : getParent().getOrderId();
 	}
 
 	default boolean isBuy() {

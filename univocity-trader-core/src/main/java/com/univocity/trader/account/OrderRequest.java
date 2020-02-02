@@ -29,7 +29,7 @@ public class OrderRequest {
 
 	private Order parent;
 
-	protected List<OrderRequest> attachments = new ArrayList<>();
+	private List<OrderRequest> attachedRequests = new ArrayList<>();
 
 	public OrderRequest(Order parent, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
 		this(parent.getAssetsSymbol(), parent.getFundsSymbol(), side, tradeSide, time, resubmittedFrom);
@@ -156,12 +156,16 @@ public class OrderRequest {
 		this.time = time;
 	}
 
-	public final List<OrderRequest> getAttachments() {
-		return attachments == null ? null : Collections.unmodifiableList(attachments);
+	public final List<OrderRequest> attachedOrderRequests() {
+		return attachedRequests == null ? null : Collections.unmodifiableList(attachedRequests);
 	}
 
 	public final Order getParent() {
 		return parent;
+	}
+
+	public final String getParentOrderId() {
+		return parent == null ? "" : parent.getOrderId();
 	}
 
 	public final Order.TriggerCondition getTriggerCondition() {
@@ -190,26 +194,30 @@ public class OrderRequest {
 	}
 
 	public OrderRequest attach(Order.Type type, double change) {
-		if (attachments == null) {
+		if (attachedRequests == null) {
 			throw new IllegalArgumentException("Can only attach orders to the parent order");
 		}
 
 		OrderRequest attachment = new OrderRequest(assetsSymbol, fundsSymbol, side == BUY ? SELL : BUY, this.tradeSide, this.time, null);
-		attachment.attachments = null;
+		attachment.attachedRequests = null;
 
-		this.attachments.add(attachment);
+		this.attachedRequests.add(attachment);
 		attachment.setQuantity(this.quantity);
 		attachment.setPrice(this.price.multiply(BigDecimal.valueOf(1.0 + (change / 100.0))));
 		attachment.setType(type);
 
-		if (this.tradeSide == Trade.Side.LONG && change < 0.0) {
+		if (change < 0.0) {
 			attachment.setTriggerCondition(STOP_LOSS, attachment.getPrice());
 		}
 
-		if (this.tradeSide == Trade.Side.SHORT && change > 0.0) {
+		if (change >= 0.0) {
 			attachment.setTriggerCondition(STOP_GAIN, attachment.getPrice());
 		}
 
 		return attachment;
+	}
+
+	protected void setAttachedOrderRequests(List<OrderRequest> attachedRequests) {
+		this.attachedRequests = attachedRequests == null ? null : new ArrayList<>(attachedRequests);
 	}
 }

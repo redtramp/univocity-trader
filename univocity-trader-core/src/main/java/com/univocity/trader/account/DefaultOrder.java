@@ -12,17 +12,23 @@ public class DefaultOrder extends OrderRequest implements Order {
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
 	private BigDecimal averagePrice = BigDecimal.ZERO;
+	private List<Order> attachements = new ArrayList<>();
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
 	}
 
+	public DefaultOrder(OrderRequest request){
+		this(request.getAssetsSymbol(), request.getFundsSymbol(), request.getSide(), request.getTradeSide(), request.getTime());
+		setAttachedOrderRequests(request.attachedOrderRequests());
+	}
+
 	public DefaultOrder(DefaultOrder parent, Order.Side side, Trade.Side tradeSide, long time) {
 		super(parent, side, tradeSide, time, null);
-		if (parent.attachments == null) {
-			parent.attachments = new ArrayList<>();
+		if (parent.attachements == null) {
+			parent.attachements = new ArrayList<>();
 		}
-		parent.attachments.add(this);
+		parent.attachements.add(this);
 	}
 
 	public DefaultOrder(Order order) {
@@ -31,7 +37,7 @@ public class DefaultOrder extends OrderRequest implements Order {
 		this.setType(order.getType());
 		this.setQuantity(order.getQuantity());
 		this.setPrice(order.getPrice());
-		this.attachments = order.getAttachments();
+		this.attachements = order.getAttachments();
 	}
 
 	@Override
@@ -103,5 +109,9 @@ public class DefaultOrder extends OrderRequest implements Order {
 	@Override
 	public final BigDecimal getAveragePrice() {
 		return averagePrice;
+	}
+
+	public final List<Order> getAttachments() {
+		return attachements;
 	}
 }

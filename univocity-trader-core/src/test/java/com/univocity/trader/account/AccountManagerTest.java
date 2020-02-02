@@ -9,7 +9,9 @@ import org.junit.*;
 
 import java.math.*;
 import java.util.*;
+import java.util.function.*;
 
+import static com.univocity.trader.account.Order.Status.*;
 import static com.univocity.trader.account.Order.Type.*;
 import static com.univocity.trader.account.Trade.Side.*;
 import static com.univocity.trader.indicators.Signal.*;
@@ -19,7 +21,7 @@ public class AccountManagerTest {
 
 	private static final double CLOSE = 0.4379;
 
-	private AccountManager getAccountManager(){
+	private AccountManager getAccountManager() {
 		return getAccountManager(null);
 	}
 
@@ -33,7 +35,7 @@ public class AccountManagerTest {
 				.tradeWith("ADA", "BNB")
 				.enableShorting();
 
-		if(orderManager != null) {
+		if (orderManager != null) {
 			accountCfg.orderManager(orderManager);
 		}
 
@@ -205,6 +207,19 @@ public class AccountManagerTest {
 	}
 
 	private double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
+		return checkTradeAfterLongBuy(usdBalanceBeforeTrade, trade, totalSpent, previousQuantity, unitPrice, maxUnitPrice, minUnitPrice,
+				(account) -> account.getAmount("ADA"));
+	}
+
+	private double checkTradeAfterBracketOrder(double usdBalanceBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
+		return checkTradeAfterLongBuy(usdBalanceBeforeTrade, trade, totalSpent, previousQuantity, unitPrice, maxUnitPrice, minUnitPrice,
+				//bracket order locks amount bought to sell it back in two opposing orders.
+				//locked balance must be relative to amount bought in parent order, and both orders share the same locked balance.
+				(account) -> account.getBalance("ADA").getLocked().doubleValue());
+
+	}
+
+	private double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice, Function<AccountManager, Double> assetBalance) {
 		Trader trader = trade.trader();
 
 		double amountAfterFees = getInvestmentAmount(trader, totalSpent);
@@ -218,7 +233,7 @@ public class AccountManagerTest {
 		assertEquals(totalQuantity, trade.quantity(), 0.01);
 
 		AccountManager account = trader.tradingManager.getAccount();
-		assertEquals(totalQuantity, account.getAmount("ADA"), 0.001);
+		assertEquals(totalQuantity, assetBalance.apply(account), 0.001);
 		assertEquals(usdBalanceBeforeTrade - amountAfterFees, account.getAmount("USDT"), 0.01);
 
 		return quantityAfterFees;
@@ -541,7 +556,7 @@ public class AccountManagerTest {
 		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.92));
-		assertEquals(Order.Status.FILLED, o.getStatus());
+		assertEquals(FILLED, o.getStatus());
 		assertTrue(o.isActive());
 		assertEquals(0.0, account.getAmount("ADA"), 0.001);
 		assertEquals(usdBalance + ((o.getExecutedQuantity().doubleValue() /*quantity*/) * 0.92 /*price*/) * 0.999 /*fees*/, account.getAmount("USDT"), 0.001);
@@ -591,7 +606,7 @@ public class AccountManagerTest {
 		double previousUsdBalance = usdBalance;
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(5, 0.8));
 		assertTrue(o.isActive());
-		assertEquals(Order.Status.FILLED, o.getStatus());
+		assertEquals(FILLED, o.getStatus());
 
 		assertEquals(2 * MAX * 0.999 * 0.999 * 0.9999, account.getAmount("ADA"), 0.001);
 		assertEquals(previousUsdBalance - (((MAX * 0.9999 /*quantity offset*/) * 0.8 /*price*/) * 0.999 /*fees*/), account.getAmount("USDT"), 0.001);
@@ -622,11 +637,40 @@ public class AccountManagerTest {
 		tradeOnPrice(trader, 1, 1.0, BUY);
 		final Trade trade = trader.trades().iterator().next();
 
-		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, MAX, 0.0, 1.0, 1.0, 1.0);
+		double quantity1 = checkTradeAfterBracketOrder(usdBalance, trade, MAX, 0.0, 1.0, 1.0, 1.0);
 		usdBalance = account.getAmount("USDT");
+
+		assertEquals(MAX * 0.9999 * 0.999 * 0.999, quantity1); //40 minus offset + 2x fees
+		assertEquals(initialBalance - (quantity1 + (quantity1 * 0.001)), usdBalance, 0.0001); //attached orders submitted, so 1x fees again
 
 		Order parent = trade.position().iterator().next();
 		assertEquals(2, parent.getAttachments().size());
+
+		Order profitOrder = null;
+		Order lossOrder = null;
+
+		for (Order o : parent.getAttachments()) {
+			assertEquals(NEW, o.getStatus());
+			if(o.getTriggerPrice().doubleValue() > 1.0){
+				profitOrder = o;
+			} else {
+				lossOrder = o;
+			}
+		}
+
+		assertNotNull(profitOrder);
+		assertNotNull(lossOrder);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.9));
+
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
+
+//		assertEquals(initialBalance - (bought - bought * 0.9), account.getAmount("USDT"), 0.00001);
+
+
+		assertEquals(FILLED, lossOrder.getStatus());
+		assertEquals(CANCELLED, profitOrder.getStatus());
 	}
 
 }
