@@ -27,7 +27,7 @@ public class OrderRequest {
 	private Order.Type type = Order.Type.LIMIT;
 	private boolean active = true;
 
-	private Order parent;
+	protected Order parent;
 
 	private List<OrderRequest> attachedRequests = new ArrayList<>();
 

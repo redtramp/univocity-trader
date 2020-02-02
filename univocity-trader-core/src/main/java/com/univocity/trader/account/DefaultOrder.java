@@ -12,7 +12,7 @@ public class DefaultOrder extends OrderRequest implements Order {
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
 	private BigDecimal averagePrice = BigDecimal.ZERO;
-	private List<Order> attachements = new ArrayList<>();
+	private List<Order> attachments = new ArrayList<>();
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -23,21 +23,12 @@ public class DefaultOrder extends OrderRequest implements Order {
 		setAttachedOrderRequests(request.attachedOrderRequests());
 	}
 
-	public DefaultOrder(DefaultOrder parent, Order.Side side, Trade.Side tradeSide, long time) {
-		super(parent, side, tradeSide, time, null);
-		if (parent.attachements == null) {
-			parent.attachements = new ArrayList<>();
+	public void setParent(DefaultOrder parent){
+		this.parent = parent;
+		if (parent.attachments == null) {
+			parent.attachments = new ArrayList<>();
 		}
-		parent.attachements.add(this);
-	}
-
-	public DefaultOrder(Order order) {
-		super(order.getAssetsSymbol(), order.getFundsSymbol(), order.getSide(), order.getTradeSide(), order.getTime(), null);
-		this.setOrderId(order.getOrderId());
-		this.setType(order.getType());
-		this.setQuantity(order.getQuantity());
-		this.setPrice(order.getPrice());
-		this.attachements = order.getAttachments();
+		parent.attachments.add(this);
 	}
 
 	@Override
@@ -112,6 +103,6 @@ public class DefaultOrder extends OrderRequest implements Order {
 	}
 
 	public final List<Order> getAttachments() {
-		return attachements;
+		return Collections.unmodifiableList(attachments);
 	}
 }

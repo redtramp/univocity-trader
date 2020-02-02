@@ -661,12 +661,15 @@ public class AccountManagerTest {
 		assertNotNull(profitOrder);
 		assertNotNull(lossOrder);
 
+		assertEquals(parent, profitOrder.getParent());
+		assertEquals(parent, lossOrder.getParent());
+
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.9));
 
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
 
-//		assertEquals(initialBalance - (bought - bought * 0.9), account.getAmount("USDT"), 0.00001);
+		assertEquals(usdBalance + (quantity1 * 0.9) * 0.999, account.getAmount("USDT"), 0.00001);
 
 
 		assertEquals(FILLED, lossOrder.getStatus());

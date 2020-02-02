@@ -225,6 +225,14 @@ public class SimulatedClientAccount implements ClientAccount {
 			if (order.isFinalized()) {
 				it.remove();
 				((DefaultOrder) order).setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
+
+				if (order.getParent() != null) { //order that is finalized is an end of a bracket order
+					for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
+						attached.cancel();
+					}
+					sharedFunds.remove(order.getParentOrderId());
+				}
+
 				updateBalances(order, pendingOrder.lockedAmount, candle);
 
 				List<OrderRequest> attachments = ((DefaultOrder) order).attachedOrderRequests();
@@ -248,11 +256,11 @@ public class SimulatedClientAccount implements ClientAccount {
 			request.updateTime(candle != null ? candle.openTime : parent.getTime());
 			Order linkedOrder = account.executeOrder(request);  //TODO -> check if order is managed by everything
 			if (linkedOrder != null) {
+				((DefaultOrder) linkedOrder).setParent((DefaultOrder) parent);
 				String parentId = request.getParentOrderId();
 				if (!sharedFunds.containsKey(parentId)) {
 					sharedFunds.put(parentId, linkedOrder.getQuantity());
 				}
-				parent.getAttachments().add(linkedOrder);
 			}
 			activateAndTryFill(candle, linkedOrder);
 		}
