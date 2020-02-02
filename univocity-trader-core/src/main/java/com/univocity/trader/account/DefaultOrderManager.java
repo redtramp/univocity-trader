@@ -63,17 +63,21 @@ public class DefaultOrderManager implements OrderManager {
 
 	@Override
 	public void unchanged(Order order, Trader trader, Consumer<Order> resubmission) {
-		if (order.getTimeElapsed(trader.latestCandle().closeTime) >= maxTimeToKeepOrderOpen.ms) {
+		if (isCancellable(order) && order.getTimeElapsed(trader.latestCandle().closeTime) >= maxTimeToKeepOrderOpen.ms) {
 			order.cancel();
 		}
 	}
 
 	@Override
 	public boolean cancelToReleaseFundsFor(Order order, Trader currentTrader, Trader newSymbolTrader) {
-		if (order.getTimeElapsed(currentTrader.latestCandle().closeTime) > maxTimeToKeepOrderOpen.ms / 2) {
+		if (isCancellable(order) && order.getTimeElapsed(currentTrader.latestCandle().closeTime) > maxTimeToKeepOrderOpen.ms / 2) {
 			order.cancel();
 			return true;
 		}
 		return false;
+	}
+
+	protected boolean isCancellable(Order order) {
+		return order.getParent() != null || order.getTriggerCondition() != Order.TriggerCondition.NONE;
 	}
 }
