@@ -272,10 +272,12 @@ public class SimulatedClientAccount implements ClientAccount {
 		if (locked.compareTo(BigDecimal.ZERO) > 0) {
 			attached.updateTime(candle != null ? candle.openTime : parent.getTime());
 			if (sharedFunds.put(parent.getOrderId(), locked) == null) {
-				if (attached.isSell()) {
-					account.lockAmount(attached.getAssetsSymbol(), locked);
-				} else {
-					account.lockAmount(attached.getFundsSymbol(), locked);
+				if (attached.isLong()) {
+					if (attached.isSell()) {
+						account.lockAmount(attached.getAssetsSymbol(), locked);
+					} else {
+						account.lockAmount(attached.getFundsSymbol(), locked);
+					}
 				}
 			}
 			activateOrder(attached, locked);

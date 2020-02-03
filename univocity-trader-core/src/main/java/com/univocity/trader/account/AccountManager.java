@@ -113,7 +113,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 	public void subtractFromFreeBalance(String symbol, final BigDecimal amount) {
 		Balance balance = getBalance(symbol);
 		BigDecimal result = round(balance.getFree().subtract(amount));
-		if (amount.compareTo(BigDecimal.ZERO) < 0) {
+		if (result.compareTo(BigDecimal.ZERO) < 0) {
 			if (result.setScale(2, RoundingMode.HALF_UP).compareTo(BigDecimal.ZERO) < 0) {
 				throw new IllegalStateException("Can't subtract " + amount + " from " + symbol + "'s current free balance of: " + balance.getFree() + ". Insufficient funds.");
 			} else {
@@ -139,7 +139,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 	public void subtractFromShortedBalance(String symbol, final BigDecimal amount) {
 		Balance balance = getBalance(symbol);
 		BigDecimal result = round(balance.getShorted().subtract(amount));
-		if (amount.compareTo(BigDecimal.ZERO) < 0) {
+		if (result.compareTo(BigDecimal.ZERO) < 0) {
 			if (result.setScale(2, RoundingMode.HALF_UP).compareTo(BigDecimal.ZERO) < 0) {
 				throw new IllegalStateException("Can't subtract " + amount + " from " + symbol + "'s current short balance of: " + balance.getShorted() + ". Insufficient funds.");
 			} else {
@@ -157,7 +157,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 	public void subtractFromMarginReserveBalance(String fundSymbol, String assetSymbol, final BigDecimal amount) {
 		Balance balance = getBalance(fundSymbol);
 		BigDecimal result = round(balance.getMarginReserve(assetSymbol).subtract(amount));
-		if (amount.compareTo(BigDecimal.ZERO) < 0) {
+		if (result.compareTo(BigDecimal.ZERO) < 0) {
 			if (result.setScale(2, RoundingMode.HALF_UP).compareTo(BigDecimal.ZERO) < 0) {
 				throw new IllegalStateException("Can't subtract " + amount + " from " + fundSymbol + "'s margin reserve: " + balance.getMarginReserve(assetSymbol) + ". Insufficient funds.");
 			} else {
