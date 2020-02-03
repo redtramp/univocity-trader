@@ -27,11 +27,9 @@ public class OrderRequest {
 	private Order.Type type = Order.Type.LIMIT;
 	private boolean active = true;
 
-	protected Order parent;
 	private List<OrderRequest> attachedRequests = new ArrayList<>();
 
 	public OrderRequest(String assetsSymbol, String fundsSymbol, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
-		this.parent = null;
 		this.resubmittedFrom = resubmittedFrom;
 		this.time = time;
 		if (StringUtils.isBlank(assetsSymbol)) {
@@ -154,14 +152,6 @@ public class OrderRequest {
 		return attachedRequests == null ? null : Collections.unmodifiableList(attachedRequests);
 	}
 
-	public final Order getParent() {
-		return parent;
-	}
-
-	public final String getParentOrderId() {
-		return parent == null ? "" : parent.getOrderId();
-	}
-
 	public final Order.TriggerCondition getTriggerCondition() {
 		return this.triggerCondition;
 	}
@@ -213,12 +203,5 @@ public class OrderRequest {
 
 	protected void setAttachedOrderRequests(List<OrderRequest> attachedRequests) {
 		this.attachedRequests = attachedRequests == null ? null : new ArrayList<>(attachedRequests);
-	}
-
-	public void setParent(DefaultOrder parent){
-		this.parent = parent;
-		if(quantity.compareTo(parent.getQuantity()) > 0 || quantity.compareTo(BigDecimal.ZERO) == 0){
-			quantity = parent.getQuantity();
-		}
 	}
 }

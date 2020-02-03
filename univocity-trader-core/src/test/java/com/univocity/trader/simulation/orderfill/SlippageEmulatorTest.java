@@ -5,7 +5,6 @@ import com.univocity.trader.candles.*;
 import org.junit.*;
 
 import java.math.*;
-import java.util.*;
 
 import static com.univocity.trader.account.Order.Side.*;
 import static com.univocity.trader.account.Order.Type.*;
@@ -23,7 +22,6 @@ public class SlippageEmulatorTest {
 		DefaultOrder order = new DefaultOrder("BTC", "USDT", side, Trade.Side.LONG, System.currentTimeMillis());
 		order.setType(type);
 
-		order.setOrderId(UUID.randomUUID().toString());
 		order.setPrice(BigDecimal.valueOf(price));
 		order.setStatus(Order.Status.NEW);
 		order.setExecutedQuantity(BigDecimal.ZERO);

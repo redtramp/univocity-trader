@@ -90,7 +90,7 @@ public class Trade implements Comparable<Trade> {
 		initTrade();
 	}
 
-	private void initTrade(){
+	private void initTrade() {
 		this.firstCandle = trader.latestCandle();
 		this.max = this.min = firstCandle.close;
 		finalized = false;
@@ -478,13 +478,13 @@ public class Trade implements Comparable<Trade> {
 	}
 
 	public boolean isFinalized() {
-		if(finalized){
+		if (finalized) {
 			return true;
 		}
 		return finalized = checkIfFinalized();
 	}
 
-	private boolean checkIfFinalized(){
+	private boolean checkIfFinalized() {
 		if (isPlaceholder) {
 			return true;
 		}
@@ -572,8 +572,8 @@ public class Trade implements Comparable<Trade> {
 	}
 
 	public synchronized boolean increasePosition(Order order) {
-		if(finalized){
-			if(position.isEmpty()){
+		if (finalized) {
+			if (position.isEmpty()) {
 				initTrade();
 			} else {
 				throw new IllegalStateException("Trying to increase position of finalized trade");
@@ -583,6 +583,16 @@ public class Trade implements Comparable<Trade> {
 
 		if (exitOrders.isEmpty()) {
 			this.position.put(order.getOrderId(), order);
+			List<Order> attachments = order.getAttachments();
+			if (attachments != null) {
+				for (Order attachment : order.getAttachments()) {
+					if (attachment.getSide() != order.getSide()) {
+						exitOrders.put(attachment.getOrderId(), attachment);
+					} else {
+						position.put(attachment.getOrderId(), attachment);
+					}
+				}
+			}
 			notifyOrderSubmission(order);
 			return true;
 		}
@@ -590,7 +600,7 @@ public class Trade implements Comparable<Trade> {
 	}
 
 	public synchronized void decreasePosition(Order order, String exitReason) {
-		if(!isPlaceholder && finalized){
+		if (!isPlaceholder && finalized) {
 			throw new IllegalStateException("Trying to decrease position of finalized trade");
 		}
 		if (this.exitReason == null) {

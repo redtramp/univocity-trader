@@ -626,22 +626,30 @@ public class AccountManagerTest {
 
 
 		final double MAX = 40.0;
-		final double initialBalance = 100;
+		double initialBalance = 100;
 
 		account.setAmount("USDT", initialBalance);
 		account.configuration().maximumInvestmentAmountPerTrade(MAX);
 
+		initialBalance = testBracketOrder(account, initialBalance, 1.0, -0.1, 10);
+		initialBalance = testBracketOrder(account, initialBalance, 1.0, -0.1, 20);
+		initialBalance = testBracketOrder(account, initialBalance, 1.0, 0.1, 30);
+		initialBalance = testBracketOrder(account, initialBalance, 1.0, 0.1, 40);
+
+	}
+
+	private double testBracketOrder(AccountManager account, double initialBalance, double unitPrice, double priceIncrement, long time) {
 		Trader trader = account.getTraderOf("ADAUSDT");
 
 		double usdBalance = account.getAmount("USDT");
-		tradeOnPrice(trader, 1, 1.0, BUY);
+		tradeOnPrice(trader, ++time, unitPrice, BUY);
 		final Trade trade = trader.trades().iterator().next();
 
-		double quantity1 = checkTradeAfterBracketOrder(usdBalance, trade, MAX, 0.0, 1.0, 1.0, 1.0);
+		double quantity1 = checkTradeAfterBracketOrder(usdBalance, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
 		usdBalance = account.getAmount("USDT");
 
-		assertEquals(MAX * 0.9999 * 0.999 * 0.999, quantity1); //40 minus offset + 2x fees
-		assertEquals(initialBalance - (quantity1 + (quantity1 * 0.001)), usdBalance, 0.0001); //attached orders submitted, so 1x fees again
+		assertEquals(40.0 / unitPrice * 0.9999 * 0.999 * 0.999, quantity1); //40 minus offset + 2x fees
+		assertEquals(initialBalance - (quantity1 * unitPrice + (quantity1 * unitPrice * 0.001)), usdBalance, 0.0001); //attached orders submitted, so 1x fees again
 
 		Order parent = trade.position().iterator().next();
 		assertEquals(2, parent.getAttachments().size());
@@ -653,7 +661,7 @@ public class AccountManagerTest {
 			assertEquals(NEW, o.getStatus());
 			assertEquals(parent.getOrderId(), o.getParentOrderId());
 			assertFalse(o.isActive());
-			if (o.getTriggerPrice().doubleValue() > 1.0) {
+			if (o.getTriggerPrice().doubleValue() > unitPrice) {
 				profitOrder = o;
 			} else {
 				lossOrder = o;
@@ -666,17 +674,27 @@ public class AccountManagerTest {
 		assertEquals(parent, profitOrder.getParent());
 		assertEquals(parent, lossOrder.getParent());
 
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.9)); //this finalizes all orders
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 2.0)); //so this should not do anything
+		unitPrice = unitPrice + priceIncrement;
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //this finalizes all orders
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice * 20)); //so this should not do anything
 
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
 
-		assertEquals(usdBalance + (quantity1 * 0.9) * 0.999, account.getAmount("USDT"), 0.00001);
+
+		double currentBalance = account.getAmount("USDT");
+		assertEquals(usdBalance + (quantity1 * unitPrice) * 0.999, currentBalance, 0.00001);
+
+		if(priceIncrement > 0){
+			assertEquals(CANCELLED, lossOrder.getStatus());
+			assertEquals(FILLED, profitOrder.getStatus());
+		} else {
+			assertEquals(FILLED, lossOrder.getStatus());
+			assertEquals(CANCELLED, profitOrder.getStatus());
+		}
 
 
-		assertEquals(FILLED, lossOrder.getStatus());
-		assertEquals(CANCELLED, profitOrder.getStatus());
+		return currentBalance;
 	}
-
 }
