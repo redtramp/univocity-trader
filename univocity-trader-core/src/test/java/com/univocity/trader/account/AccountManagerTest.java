@@ -651,7 +651,9 @@ public class AccountManagerTest {
 
 		for (Order o : parent.getAttachments()) {
 			assertEquals(NEW, o.getStatus());
-			if(o.getTriggerPrice().doubleValue() > 1.0){
+			assertEquals(parent.getOrderId(), o.getParentOrderId());
+			assertFalse(o.isActive());
+			if (o.getTriggerPrice().doubleValue() > 1.0) {
 				profitOrder = o;
 			} else {
 				lossOrder = o;
@@ -664,7 +666,8 @@ public class AccountManagerTest {
 		assertEquals(parent, profitOrder.getParent());
 		assertEquals(parent, lossOrder.getParent());
 
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.9));
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.9)); //this finalizes all orders
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 2.0)); //so this should not do anything
 
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);

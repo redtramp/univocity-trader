@@ -126,6 +126,9 @@ public class SimulatedClientAccount implements ClientAccount {
 		}
 
 		if (order != null) {
+			if (orderDetails.getParent() != null) {
+				order.setParent((DefaultOrder) orderDetails.getParent());
+			}
 			orders.computeIfAbsent(order.getSymbol(), (s) -> new ConcurrentSkipListSet<>()).add(new PendingOrder(order, locked));
 		}
 
@@ -178,15 +181,15 @@ public class SimulatedClientAccount implements ClientAccount {
 		return true;
 	}
 
-	private void activateAndTryFill(Candle candle, Order order) {
+	private void activateAndTryFill(Candle candle, DefaultOrder order) {
 		if (candle != null && order != null) {
 			if (!order.isActive()) {
 				if (triggeredBy(order, null, candle)) {
-					((DefaultOrder) order).activate();
+					order.activate();
 				}
 			}
 			if (order.isActive()) {
-				orderFillEmulator.fillOrder((DefaultOrder) order, candle);
+				orderFillEmulator.fillOrder(order, candle);
 			}
 		}
 	}
@@ -200,14 +203,14 @@ public class SimulatedClientAccount implements ClientAccount {
 		Iterator<PendingOrder> it = s.iterator();
 		while (it.hasNext()) {
 			PendingOrder pendingOrder = it.next();
-			Order order = pendingOrder.order;
+			DefaultOrder order = (DefaultOrder) pendingOrder.order;
 
 			activateAndTryFill(candle, order);
 
 			OrderRequest triggeredOrder = null;
 			if (!order.isFinalized() && order.getFillPct() > 0.0) {
 				//if attached order is triggered, cancel parent and submit triggered order.
-				List<OrderRequest> attachments = ((DefaultOrder) order).attachedOrderRequests();
+				List<OrderRequest> attachments = order.attachedOrderRequests();
 				if (attachments != null && !attachments.isEmpty()) {
 					for (OrderRequest attachment : attachments) {
 						if (triggeredBy(order, attachment, candle)) {
@@ -224,18 +227,22 @@ public class SimulatedClientAccount implements ClientAccount {
 
 			if (order.isFinalized()) {
 				it.remove();
-				((DefaultOrder) order).setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
+				order.setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
 
+				BigDecimal amountToUnlock = pendingOrder.lockedAmount;
 				if (order.getParent() != null) { //order that is finalized is an end of a bracket order
-					for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
-						attached.cancel();
+					if (sharedFunds.remove(order.getParentOrderId()) == null) {
+						amountToUnlock = BigDecimal.ZERO; //already unlocked by an order from the same parent.
+					} else {
+						for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
+							attached.cancel();
+						}
 					}
-					sharedFunds.remove(order.getParentOrderId());
 				}
 
-				updateBalances(order, pendingOrder.lockedAmount, candle);
+				updateBalances(order, amountToUnlock, candle);
 
-				List<OrderRequest> attachments = ((DefaultOrder) order).attachedOrderRequests();
+				List<OrderRequest> attachments = order.attachedOrderRequests();
 				if (triggeredOrder == null && attachments != null && !attachments.isEmpty()) {
 					for (OrderRequest attachment : attachments) {
 						processAttachedOrder(order, attachment, candle);
@@ -250,15 +257,14 @@ public class SimulatedClientAccount implements ClientAccount {
 		return true;
 	}
 
-	private void processAttachedOrder(Order parent, OrderRequest request, Candle candle) {
+	private void processAttachedOrder(DefaultOrder parent, OrderRequest request, Candle candle) {
 		if (parent.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
-			request.setQuantity(parent.getQuantity());
+			request.setParent(parent);
 			request.updateTime(candle != null ? candle.openTime : parent.getTime());
-			Order linkedOrder = account.executeOrder(request);  //TODO -> check if order is managed by everything
+			DefaultOrder linkedOrder = (DefaultOrder) account.executeOrder(request);  //TODO -> check if order is managed by everything
 			if (linkedOrder != null) {
-				((DefaultOrder) linkedOrder).setParent((DefaultOrder) parent);
-				String parentId = request.getParentOrderId();
-				if (!sharedFunds.containsKey(parentId)) {
+				String parentId = linkedOrder.getParentOrderId();
+				if (!parentId.isEmpty() && !sharedFunds.containsKey(parentId)) {
 					sharedFunds.put(parentId, linkedOrder.getQuantity());
 				}
 			}
@@ -345,9 +351,11 @@ public class SimulatedClientAccount implements ClientAccount {
 				}
 			} else if (order.isSell()) {
 				if (order.isLong()) {
-					account.subtractFromLockedBalance(asset, locked);
-					account.addToFreeBalance(asset, order.getRemainingQuantity());
-					account.addToFreeBalance(funds, order.getTotalTraded());
+					if (locked.compareTo(BigDecimal.ZERO) > 0) {
+						account.subtractFromLockedBalance(asset, locked);
+						account.addToFreeBalance(asset, order.getRemainingQuantity());
+						account.addToFreeBalance(funds, order.getTotalTraded());
+					}
 				} else if (order.isShort()) {
 					account.subtractFromLockedBalance(funds, locked);
 					account.addToFreeBalance(funds, locked);

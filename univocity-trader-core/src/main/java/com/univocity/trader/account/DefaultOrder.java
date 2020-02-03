@@ -12,7 +12,7 @@ public class DefaultOrder extends OrderRequest implements Order {
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
 	private BigDecimal averagePrice = BigDecimal.ZERO;
-	private List<Order> attachments = new ArrayList<>();
+	List<Order> attachments = new ArrayList<>();
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -24,7 +24,7 @@ public class DefaultOrder extends OrderRequest implements Order {
 	}
 
 	public void setParent(DefaultOrder parent){
-		this.parent = parent;
+		super.setParent(parent);
 		if (parent.attachments == null) {
 			parent.attachments = new ArrayList<>();
 		}

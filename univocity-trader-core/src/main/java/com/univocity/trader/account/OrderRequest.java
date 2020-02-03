@@ -28,13 +28,7 @@ public class OrderRequest {
 	private boolean active = true;
 
 	protected Order parent;
-
 	private List<OrderRequest> attachedRequests = new ArrayList<>();
-
-	public OrderRequest(Order parent, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
-		this(parent.getAssetsSymbol(), parent.getFundsSymbol(), side, tradeSide, time, resubmittedFrom);
-		this.parent = parent;
-	}
 
 	public OrderRequest(String assetsSymbol, String fundsSymbol, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
 		this.parent = null;
@@ -219,5 +213,12 @@ public class OrderRequest {
 
 	protected void setAttachedOrderRequests(List<OrderRequest> attachedRequests) {
 		this.attachedRequests = attachedRequests == null ? null : new ArrayList<>(attachedRequests);
+	}
+
+	public void setParent(DefaultOrder parent){
+		this.parent = parent;
+		if(quantity.compareTo(parent.getQuantity()) > 0 || quantity.compareTo(BigDecimal.ZERO) == 0){
+			quantity = parent.getQuantity();
+		}
 	}
 }
