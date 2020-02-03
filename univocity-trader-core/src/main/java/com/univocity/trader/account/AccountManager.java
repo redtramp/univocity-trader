@@ -662,7 +662,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		return account.isSimulated();
 	}
 
-	private void waitForFill(Order order) {
+	public void waitForFill(Order order) {
 		pendingOrders.put(order.getOrderId(), order);
 		if (isSimulated()) {
 			return;

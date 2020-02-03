@@ -18,7 +18,7 @@ public class SlippageEmulatorTest {
 		emulator.fillOrder(order, candle);
 	}
 
-	private DefaultOrder newOrder(Order.Type type, Order.Side side, double price, double quantity) {
+	static DefaultOrder newOrder(Order.Type type, Order.Side side, double price, double quantity) {
 		DefaultOrder order = new DefaultOrder("BTC", "USDT", side, Trade.Side.LONG, System.currentTimeMillis());
 		order.setType(type);
 

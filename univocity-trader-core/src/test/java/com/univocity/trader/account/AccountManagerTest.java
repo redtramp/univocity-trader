@@ -677,7 +677,7 @@ public class AccountManagerTest {
 		unitPrice = unitPrice + priceIncrement;
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //this finalizes all orders
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice * 20)); //so this should not do anything
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //so this should not do anything
 
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);

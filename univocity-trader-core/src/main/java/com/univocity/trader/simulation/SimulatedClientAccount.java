@@ -279,6 +279,7 @@ public class SimulatedClientAccount implements ClientAccount {
 				}
 			}
 			activateOrder(attached, locked);
+			account.waitForFill(attached);
 			activateAndTryFill(candle, attached);
 		}
 	}
