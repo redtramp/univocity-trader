@@ -18,6 +18,43 @@ import static junit.framework.TestCase.*;
 public class LongTradingTests extends OrderFillChecker {
 
 	@Test
+	public void testLongPositionTradingWithFullAccount() {
+		AccountManager account = getAccountManager();
+
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 1, 1.0, BUY);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, 100, 0.0, 1.0, 1.0, 1.0);
+		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
+		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
+
+		usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 10, 0.8, BUY);
+		double quantity2 = checkTradeAfterLongBuy(usdBalance, trade, 100, quantity1, 0.8, 1.1, 0.8);
+
+		double averagePrice = ((quantity1 * 1.0) + (quantity2 * 0.8)) / (quantity1 + quantity2);
+		assertEquals(averagePrice, trade.averagePrice(), 0.001);
+
+		usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 20, 0.95, SELL);
+		checkTradeAfterLongSell(usdBalance, trade, (quantity1 + quantity2), 0.95, 1.1, 0.8);
+		assertEquals(averagePrice, trade.averagePrice(), 0.001); //average price is about 0.889
+
+		assertFalse(trade.stopped());
+		assertEquals("Sell signal", trade.exitReason());
+		assertFalse(trade.tryingToExit());
+
+		checkProfitLoss(trade, initialBalance, (quantity1 * 1.0) + (quantity2 * 0.8));
+	}
+
+	@Test
 	public void testLongPositionTrading() {
 		AccountManager account = getAccountManager();
 

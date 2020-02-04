@@ -80,9 +80,8 @@ public class OrderFillChecker {
 	double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice, Function<AccountManager, Double> assetBalance) {
 		Trader trader = trade.trader();
 
-		double amountAfterFees = getInvestmentAmount(trader, totalSpent);
-		double amountToInvest = getInvestmentAmount(trader, amountAfterFees); //take fees again to ensure there are funds for fees when closing
-		double quantityAfterFees = (amountToInvest / unitPrice) * 0.9999; //quantity adjustment to ensure exchange doesn't reject order for mismatching decimals
+		double fees = totalSpent * 0.001;
+		double quantityAfterFees = (totalSpent / unitPrice) * 0.9999 - fees; //quantity adjustment to ensure exchange doesn't reject order for mismatching decimals
 
 		double totalQuantity = quantityAfterFees + previousQuantity;
 
@@ -92,7 +91,7 @@ public class OrderFillChecker {
 
 		AccountManager account = trader.tradingManager.getAccount();
 		assertEquals(totalQuantity, assetBalance.apply(account), 0.001);
-		assertEquals(usdBalanceBeforeTrade - amountAfterFees, account.getAmount("USDT"), 0.01);
+		assertEquals(usdBalanceBeforeTrade - quantityAfterFees, account.getAmount("USDT"), 0.01);
 
 		return quantityAfterFees;
 	}
@@ -182,9 +181,8 @@ public class OrderFillChecker {
 	double checkTradeAfterBracketShortSell(double usdBalanceBeforeTrade, double usdReservedBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
 		Trader trader = trade.trader();
 
-		double amountToInvest = getInvestmentAmount(trader, totalSpent);
-		double feesPaid = totalSpent - amountToInvest;
-		double quantityAfterFees = (amountToInvest / unitPrice);
+		double feesPaid = totalSpent - totalSpent;
+		double quantityAfterFees = (totalSpent / unitPrice);
 
 		double totalQuantity = quantityAfterFees + previousQuantity;
 
@@ -197,10 +195,10 @@ public class OrderFillChecker {
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), 0.001); //orders submitted to buy it all back
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.001);
 
-		double inReserve = account.marginReserveFactorPct() * amountToInvest;
+		double inReserve = account.marginReserveFactorPct() * totalSpent;
 		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.001);
 
-		double movedToReserve = inReserve - amountToInvest;
+		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
 		assertEquals(freeBalance, account.getAmount("USDT"), 0.01);
 
@@ -208,13 +206,11 @@ public class OrderFillChecker {
 	}
 
 
-
 	double checkTradeAfterShortSell(double usdBalanceBeforeTrade, double usdReservedBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
 		Trader trader = trade.trader();
 
-		double amountToInvest = getInvestmentAmount(trader, totalSpent);
-		double feesPaid = totalSpent - amountToInvest;
-		double quantityAfterFees = (amountToInvest / unitPrice);
+		double feesPaid = totalSpent - totalSpent;
+		double quantityAfterFees = (totalSpent / unitPrice);
 
 		double totalQuantity = quantityAfterFees + previousQuantity;
 
@@ -226,10 +222,10 @@ public class OrderFillChecker {
 		assertEquals(0.0, account.getAmount("ADA"), 0.001);
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), 0.001);
 
-		double inReserve = account.marginReserveFactorPct() * amountToInvest;
+		double inReserve = account.marginReserveFactorPct() * totalSpent;
 		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.001);
 
-		double movedToReserve = inReserve - amountToInvest;
+		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
 		assertEquals(freeBalance, account.getAmount("USDT"), 0.01);
 
@@ -244,11 +240,5 @@ public class OrderFillChecker {
 	Candle newTick(long time, double price) {
 		return new Candle(time, time, price, price, price, price, 100.0);
 	}
-
-	double getInvestmentAmount(Trader trader, double totalSpent) {
-		final TradingFees fees = trader.tradingFees();
-		return fees.takeFee(totalSpent, Order.Type.LIMIT, Order.Side.BUY);
-	}
-
 
 }

@@ -33,6 +33,18 @@ public interface TradingFees {
 		return feesOnAmount(amount, order.getType(), order.getSide());
 	}
 
+	/**
+	 * Return the trading fee amount applied to a given {@link OrderRequest}.
+	 *
+	 * @param order the order whose fees will be calculated
+	 *
+	 * @return the total fee amount for the given order;
+	 */
+	default double feesOnOrder(OrderRequest order) {
+		final double amount = order.getTotalOrderAmount().doubleValue();
+		return feesOnAmount(amount, order.getType(), order.getSide());
+	}
+
 
 	/**
 	 * Return the trading fee amount applied to the actual amount spent on the given {@link Order}.

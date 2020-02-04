@@ -27,7 +27,7 @@ public class OrderRequest {
 	private Order.Type type = Order.Type.LIMIT;
 	private boolean active = true;
 
-	private List<OrderRequest> attachedRequests = new ArrayList<>();
+	private List<OrderRequest> attachedRequests = null;
 
 	public OrderRequest(String assetsSymbol, String fundsSymbol, Order.Side side, Trade.Side tradeSide, long time, Order resubmittedFrom) {
 		this.resubmittedFrom = resubmittedFrom;
@@ -179,7 +179,7 @@ public class OrderRequest {
 
 	public OrderRequest attach(Order.Type type, double change) {
 		if (attachedRequests == null) {
-			throw new IllegalArgumentException("Can only attach orders to the parent order");
+			attachedRequests = new ArrayList<>();
 		}
 
 		OrderRequest attachment = new OrderRequest(assetsSymbol, fundsSymbol, side == BUY ? SELL : BUY, this.tradeSide, this.time, null);

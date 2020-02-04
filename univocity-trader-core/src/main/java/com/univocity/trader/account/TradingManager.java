@@ -52,9 +52,9 @@ public class TradingManager {
 
 		this.exchange = exchange;
 		this.client = account.getClient();
-		this.assetSymbol = assetSymbol;
-		this.fundSymbol = fundSymbol;
-		this.symbol = assetSymbol + fundSymbol;
+		this.assetSymbol = assetSymbol.intern();
+		this.fundSymbol = fundSymbol.intern();
+		this.symbol = (assetSymbol + fundSymbol).intern();
 
 		Instances<OrderListener> listenerProvider = client.getOrderListeners();
 		this.notifications = listenerProvider != null ? listenerProvider.create(symbol, params) : new OrderListener[0];
@@ -221,7 +221,6 @@ public class TradingManager {
 
 	public final Map<String, Balance> updateBalances() {
 		return tradingAccount.updateBalances();
-
 	}
 
 	public String getReferenceCurrencySymbol() {
@@ -317,6 +316,7 @@ public class TradingManager {
 	void notifySimulationEnd() {
 		notifySimulationEnd(this.notifications);
 		notifySimulationEnd(trader.notifications);
+		Balance.balanceUpdateCounts.clear();
 	}
 
 	private void notifySimulationEnd(OrderListener[] notifications) {

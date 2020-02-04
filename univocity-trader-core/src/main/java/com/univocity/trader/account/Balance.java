@@ -3,10 +3,12 @@ package com.univocity.trader.account;
 import java.math.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 
 public class Balance implements Cloneable {
 
-	public static final Balance ZERO = new Balance(null);
+	public static final Map<String, AtomicLong> balanceUpdateCounts = new ConcurrentHashMap<>();
+	public static final Balance ZERO = new Balance("");
 
 	private final String symbol;
 	private BigDecimal free = BigDecimal.ZERO;
@@ -24,7 +26,7 @@ public class Balance implements Cloneable {
 
 	public Balance(String symbol, double free) {
 		this.symbol = symbol;
-		this.free = BigDecimal.valueOf(free);
+		this.free = ensurePositive(BigDecimal.valueOf(free), "free balance");
 	}
 
 	public String getSymbol() {
@@ -43,7 +45,7 @@ public class Balance implements Cloneable {
 	}
 
 	public void setFree(BigDecimal free) {
-		this.free = round(free == null ? BigDecimal.ZERO : free);
+		this.free = ensurePositive(free, "free balance");
 		this.freeAmount = -1.0;
 	}
 
@@ -52,7 +54,7 @@ public class Balance implements Cloneable {
 	}
 
 	public void setLocked(BigDecimal locked) {
-		this.locked = round(locked == null ? BigDecimal.ZERO : locked);
+		this.locked = ensurePositive(locked, "locked balance");
 	}
 
 	public double getShortedAmount() {
@@ -67,7 +69,7 @@ public class Balance implements Cloneable {
 	}
 
 	public void setShorted(BigDecimal shorted) {
-		this.shorted = round(shorted == null ? BigDecimal.ZERO : shorted);
+		this.shorted = ensurePositive(shorted, "shorted balance");
 		this.shortedAmount = -1.0;
 	}
 
@@ -80,12 +82,21 @@ public class Balance implements Cloneable {
 	}
 
 	public void setMarginReserve(String assetSymbol, BigDecimal marginReserve) {
-		marginReserve = round(marginReserve == null ? BigDecimal.ZERO : marginReserve);
+		marginReserve = ensurePositive(marginReserve, "margin reserve");
 		if (marginReserve.compareTo(BigDecimal.ZERO) <= 0) {
 			this.marginReserves.remove(assetSymbol);
 		} else {
 			this.marginReserves.put(assetSymbol, marginReserve);
 		}
+	}
+
+	private BigDecimal ensurePositive(BigDecimal bd, String field) {
+		bd = round(bd == null ? BigDecimal.ZERO : bd);
+		if (bd.compareTo(BigDecimal.ZERO) >= 0) {
+			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
+			return bd;
+		}
+		throw new IllegalStateException(symbol + ": can't set " + field + " to  " + bd);
 	}
 
 	public BigDecimal getTotal() {
@@ -104,7 +115,10 @@ public class Balance implements Cloneable {
 	}
 
 	public static final BigDecimal round(BigDecimal bd) {
-		return bd.setScale(ROUND_MC.getPrecision(), ROUND_MC.getRoundingMode());
+		if (bd.scale() != ROUND_MC.getPrecision()) {
+			return bd.setScale(ROUND_MC.getPrecision(), ROUND_MC.getRoundingMode());
+		}
+		return bd;
 	}
 
 	public static final String roundStr(BigDecimal bd) {

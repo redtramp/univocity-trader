@@ -10,6 +10,7 @@ public class AccountManagerTest extends OrderFillChecker {
 
 	@Test
 	public void testFundAllocationBasics() {
+		Balance.balanceUpdateCounts.clear();
 		AccountManager account = getAccountManager();
 		AccountConfiguration<?> cfg = account.configuration();
 
@@ -17,28 +18,28 @@ public class AccountManagerTest extends OrderFillChecker {
 		cfg.maximumInvestmentAmountPerAsset(20.0);
 
 		double funds = account.allocateFunds("ADA", LONG);
-		assertEquals(funds, 19.98, 0.001);
+		assertEquals(19.98, funds, 0.001);
 
 		cfg.maximumInvestmentPercentagePerAsset(2.0);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(funds, 7.992, 0.001);
+		assertEquals(7.992, funds, 0.001);
 
 		cfg.maximumInvestmentAmountPerTrade(6);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(funds, 5.994, 0.001);
+		assertEquals(5.994, funds, 0.001);
 
 		cfg.maximumInvestmentPercentagePerTrade(1.0);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(funds, 3.996, 0.001);
+		assertEquals(3.996, funds, 0.001);
 
 		cfg.maximumInvestmentAmountPerTrade(3);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(funds, 2.997, 0.001);
+		assertEquals(2.997, funds, 0.001);
 
 
 		cfg.minimumInvestmentAmountPerTrade(10);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(funds, 0.0, 0.001);
+		assertEquals(0.0, funds, 0.001);
 
 	}
 

@@ -329,7 +329,7 @@ public class Trader {
 				if (tradingManager.exitExistingPositions(tradingManager.assetSymbol, candle, strategy)) {
 					tradingManager.updateBalances();
 					return amountToSpend;
-				} else {
+				} else if(!tradingManager.getAccount().isSimulated()){
 					tradingManager.updateBalances();
 					amountToSpend = tradingManager.allocateFunds(side);
 					if (amountToSpend <= minimum) {

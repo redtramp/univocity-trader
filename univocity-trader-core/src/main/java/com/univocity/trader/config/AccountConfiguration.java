@@ -316,14 +316,14 @@ public abstract class AccountConfiguration<T extends AccountConfiguration<T>> im
 		return updateAllocation("minimum expenditure per trade", minimumAmount, symbols, (allocation) -> allocation.setMinimumAmountPerTrade(minimumAmount));
 	}
 
-	private T updateAllocation(String description, double param, String[]
-			symbols, Function<Allocation, Allocation> f) {
+	private T updateAllocation(String description, double param, String[] symbols, Function<Allocation, Allocation> f) {
 		if (symbols.length == 0) {
 			symbols = supportedSymbols.toArray(new String[0]);
 		}
 		for (String symbol : symbols) {
 			if (supportedSymbols.contains(symbol) || parsingProperties) {
 				allocations.compute(symbol, (s, allocation) -> allocation == null ? f.apply(new Allocation()) : f.apply(allocation));
+//				Balance.balanceUpdateCounts.clear();
 			} else {
 				reportUnknownSymbol("Can't allocate " + description + " for '" + symbol + "' to " + param, symbol);
 			}
