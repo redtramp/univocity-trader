@@ -169,14 +169,14 @@ public class LongTradingTests extends OrderFillChecker {
 		account.setAmount("USDT", initialBalance);
 		account.configuration().maximumInvestmentAmountPerTrade(MAX);
 
-		initialBalance = testLongBracketOrder(account, initialBalance, 1.0, -0.1, 10);
-		initialBalance = testLongBracketOrder(account, initialBalance, 1.0, -0.1, 20);
-		initialBalance = testLongBracketOrder(account, initialBalance, 1.0, 0.1, 30);
-		initialBalance = testLongBracketOrder(account, initialBalance, 1.0, 0.1, 40);
+		initialBalance = testLongMarketBracketOrder(account, initialBalance, 1.0, -0.1, 10);
+		initialBalance = testLongMarketBracketOrder(account, initialBalance, 1.0, -0.1, 20);
+		initialBalance = testLongMarketBracketOrder(account, initialBalance, 1.0, 0.1, 30);
+		initialBalance = testLongMarketBracketOrder(account, initialBalance, 1.0, 0.1, 40);
 
 	}
 
-	double testLongBracketOrder(AccountManager account, double initialBalance, double unitPrice, double priceIncrement, long time) {
+	double testLongMarketBracketOrder(AccountManager account, double initialBalance, double unitPrice, double priceIncrement, long time) {
 		Trader trader = account.getTraderOf("ADAUSDT");
 
 		double usdBalance = account.getAmount("USDT");
@@ -236,4 +236,111 @@ public class LongTradingTests extends OrderFillChecker {
 		return currentBalance;
 	}
 
+	@Test
+	public void testLongTradingWithLimitBracketOrder() {
+		AccountManager account = getAccountManager(new DefaultOrderManager() {
+			@Override
+			public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
+				if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
+					OrderRequest limitSellOnLoss = order.attach(LIMIT, -1.0);
+					OrderRequest takeProfit = order.attach(LIMIT, 1.0);
+				}
+			}
+		});
+
+
+		final double MAX = 40.0;
+		double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		initialBalance = testLongLimitBracketOrder(account, initialBalance, 1.0, -0.1, 10);
+		initialBalance = testLongLimitBracketOrder(account, initialBalance, 1.0, -0.1, 20);
+		initialBalance = testLongLimitBracketOrder(account, initialBalance, 1.0, 0.01, 30);
+		initialBalance = testLongLimitBracketOrder(account, initialBalance, 1.0, 0.01, 40);
+
+	}
+
+	double testLongLimitBracketOrder(AccountManager account, double initialBalance, double unitPrice, double priceIncrement, long time) {
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, ++time, unitPrice, BUY);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterLongBracketOrder(usdBalance, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
+		usdBalance = account.getAmount("USDT");
+
+		double amountSpent = (quantity1 * unitPrice + (quantity1 * unitPrice * 0.001));
+
+		assertEquals(40.0 / unitPrice * 0.9999 * 0.999 * 0.999, quantity1); //40 minus offset + 2x fees
+		assertEquals(initialBalance - amountSpent, usdBalance, 0.0001); //attached orders submitted, so 1x fees again
+
+		Order parent = trade.position().iterator().next();
+		assertEquals(2, parent.getAttachments().size());
+
+		Order profitOrder = null;
+		Order lossOrder = null;
+
+		for (Order o : parent.getAttachments()) {
+			assertEquals(NEW, o.getStatus());
+			assertEquals(parent.getOrderId(), o.getParentOrderId());
+			assertFalse(o.isActive());
+			if (o.getTriggerPrice().doubleValue() > unitPrice) {
+				profitOrder = o;
+			} else {
+				lossOrder = o;
+			}
+		}
+
+		assertNotNull(profitOrder);
+		assertNotNull(lossOrder);
+
+		assertEquals(parent, profitOrder.getParent());
+		assertEquals(parent, lossOrder.getParent());
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice + priceIncrement)); //price increment goes way beyond limit
+
+		double currentBalance = account.getAmount("USDT");
+
+		assertEquals(0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
+		if (priceIncrement < 0) {
+			assertEquals(quantity1, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
+			assertEquals(initialBalance - amountSpent, currentBalance, 0.00001);
+
+			assertTrue(lossOrder.isActive());
+			assertFalse(profitOrder.isActive());
+
+			unitPrice = unitPrice * 0.995;  //decrease 0.5% to allow limit order to fill
+
+			trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //price increment is now in range.
+
+			assertEquals(FILLED, lossOrder.getStatus());
+			assertEquals(CANCELLED, profitOrder.getStatus());
+
+			double amountSold = quantity1 * unitPrice * 0.999;
+
+			currentBalance = account.getAmount("USDT");
+			assertEquals(initialBalance - amountSpent + amountSold, currentBalance, 0.00001);
+
+			assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue());
+			assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue());
+
+			return currentBalance;
+
+		} else {
+			assertEquals(CANCELLED, lossOrder.getStatus());
+			assertEquals(FILLED, profitOrder.getStatus());
+
+			assertFalse(lossOrder.isActive());
+			assertTrue(profitOrder.isActive());
+
+			assertEquals(0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
+
+			currentBalance = account.getAmount("USDT");
+			assertEquals(initialBalance - amountSpent + quantity1 * (unitPrice + priceIncrement) * 0.999, currentBalance, 0.00001);
+			return currentBalance;
+		}
+	}
 }
