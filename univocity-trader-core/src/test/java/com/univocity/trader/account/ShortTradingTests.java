@@ -4,8 +4,11 @@ import com.univocity.trader.*;
 import com.univocity.trader.candles.*;
 import org.junit.*;
 
+import java.math.*;
+
 import static com.univocity.trader.account.Order.Status.*;
 import static com.univocity.trader.account.Order.Type.*;
+import static com.univocity.trader.account.Trade.Side.*;
 import static com.univocity.trader.indicators.Signal.*;
 import static junit.framework.TestCase.*;
 
@@ -128,6 +131,136 @@ public class ShortTradingTests extends OrderFillChecker {
 
 	}
 
+	public void checkBalancesAfterShort(double initialBalance, double currentBalance, double quantity, double unitPrice) {
+		double quantityAfterFees = quantity * unitPrice * 0.999;
+		assertEquals(quantity / unitPrice * 0.999, quantityAfterFees); //total price paid minus 1x fees
+
+		//half of quantity * unit price (50% of short sell goes to margin account) + fees over full quantity buy back
+		double totalSale = (quantityAfterFees * unitPrice);
+		double reserved = quantityAfterFees * 0.5 * unitPrice;
+		//remove margin reserve and fees paid to sell everything.
+		assertEquals(initialBalance - (totalSale * 0.001 + reserved), currentBalance, 0.0001);
+	}
+
+	public void checkBalancesAfterBuyBack(double initialBalance, double currentBalance, double quantity, double saleUnitPrice, double unitPrice) {
+		double quantityAfterFees = quantity * saleUnitPrice * 0.999;
+
+		//half of quantity * unit price (50% of short sell goes to margin account) + fees over full quantity buy back
+		double totalSale = (quantityAfterFees * saleUnitPrice);
+		double reserved = quantityAfterFees * 0.5 * saleUnitPrice;
+
+		double totalBuyback = quantityAfterFees * unitPrice;
+		//put margin reserve back, add difference of total sold + rebought, subtract fees to cover.
+		assertEquals(initialBalance + reserved + (totalSale - totalBuyback) - totalBuyback * 0.001, currentBalance, 0.00001);
+	}
+
+	@Test
+	public void testTradingWithStopLoss() {
+		AccountManager account = getAccountManager();
+
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 1, 1.0, SELL);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterShortSell(usdBalance, 0, trade, MAX, 0.0, 1.0, 1.0, 1.0);
+		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
+		checkShortTradeStats(trade, 1.1, 1.1, 1.0);
+
+		usdBalance = account.getAmount("USDT");
+		checkBalancesAfterShort(initialBalance, usdBalance, 40, 1.0);
+		double assetsAt1_0 = account.getShortedAmount("ADA");
+		double marginAt_10 = account.getMarginReserve("USDT", "ADA").doubleValue();
+		assertEquals(assetsAt1_0 * 1.5, marginAt_10, 0.0001);
+
+		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.SELL, SHORT, 2, null);
+		or.setQuantity(BigDecimal.valueOf(quantity1));
+		or.setTriggerCondition(Order.TriggerCondition.STOP_LOSS, new BigDecimal("0.9"));
+		Order o = account.executeOrder(or);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 1.5));
+		assertEquals(Order.Status.NEW, o.getStatus());
+		assertFalse(o.isActive());
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.8999));
+		assertEquals(Order.Status.NEW, o.getStatus());
+		assertTrue(o.isActive());
+
+
+		//triggers another short sell at 0.92
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.92));
+		assertEquals(Order.Status.FILLED, o.getStatus());
+		assertTrue(o.isActive());
+
+		double assetsAt0_92 = account.getShortedAmount("ADA") - assetsAt1_0;
+		double marginAt0_92 = account.getMarginReserve("USDT", "ADA").doubleValue() - marginAt_10;
+		assertEquals(assetsAt0_92 * 0.92 * 1.5, marginAt0_92, 0.0001);
+
+		assertEquals(assetsAt1_0, assetsAt0_92, 0.001);
+		assertEquals(61.5616768, account.getBalance("USDT").getFreeAmount());
+		assertEquals(115.0848, account.getMarginReserve("USDT", "ADA").doubleValue());
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue());
+	}
+
+	@Test
+	public void testTradingWithStopGain() {
+		AccountManager account = getAccountManager();
+
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, 1, 1.0, SELL);
+		final Trade trade = trader.trades().iterator().next();
+
+		double unitPrice = 1.0;
+		double quantity1 = checkTradeAfterShortSell(usdBalance, 0, trade, MAX, 0.0, unitPrice, unitPrice, unitPrice);
+		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
+		checkShortTradeStats(trade, 1.1, 1.1, 1.0);
+
+		usdBalance = account.getAmount("USDT");
+		checkBalancesAfterShort(initialBalance, usdBalance, 40.0, unitPrice);
+
+		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.BUY, SHORT, 2, null);
+		or.setQuantity(BigDecimal.valueOf(quantity1));
+		or.setTriggerCondition(Order.TriggerCondition.STOP_GAIN, new BigDecimal("1.2"));
+		Order o = account.executeOrder(or);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.8999));
+		assertEquals(Order.Status.NEW, o.getStatus());
+		assertFalse(o.isActive());
+
+		usdBalance = account.getAmount("USDT");
+		checkBalancesAfterShort(initialBalance, usdBalance, 40.0, unitPrice);
+
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 1.5));
+		assertTrue(o.isActive());
+		assertEquals(Order.Status.NEW, o.getStatus()); //can't fill because price is too high and we want to pay 1.2
+
+		double previousUsdBalance = usdBalance;
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(5, 0.8));
+		assertTrue(o.isActive());
+		assertEquals(FILLED, o.getStatus());
+
+		usdBalance = account.getAmount("USDT");
+		checkBalancesAfterBuyBack(previousUsdBalance, usdBalance, 40.0, unitPrice, 0.8);
+
+		assertEquals(0.0, account.getShortedAmount("ADA"));
+		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue());
+	}
+
 	@Test
 	public void testShortTradingWithMarketBracketOrder() {
 		AccountManager account = getAccountManager(new DefaultOrderManager() {
@@ -154,7 +287,7 @@ public class ShortTradingTests extends OrderFillChecker {
 
 	}
 
-	private double testShortBracketOrder(AccountManager account, double initialBalance, double unitPrice, double priceIncrement, long time) {
+	private double testShortBracketOrder(AccountManager account, double initialBalance, final double unitPrice, double priceIncrement, long time) {
 		Trader trader = account.getTraderOf("ADAUSDT");
 
 		double usdBalance = account.getAmount("USDT");
@@ -162,15 +295,10 @@ public class ShortTradingTests extends OrderFillChecker {
 		tradeOnPrice(trader, ++time, unitPrice, SELL);
 		final Trade trade = trader.trades().iterator().next();
 
-		double quantity1 = checkTradeAfterBracketShortSell(usdBalance, marginReserve, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
-		usdBalance = account.getAmount("USDT");
+		checkTradeAfterBracketShortSell(usdBalance, marginReserve, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
 
-		assertEquals(40.0 / unitPrice * 0.999, quantity1); //40 minus 1x fees
-		//half of quantity * unit price (50% of short sell goes to margin account) + fees over full quantity buy back
-		double totalSale = (quantity1 * unitPrice);
-		double reserved = quantity1 * 0.5 * unitPrice;
-		//remove margin reserve and fees paid to sell everything.
-		assertEquals(initialBalance - (totalSale * 0.001 + reserved), usdBalance, 0.0001);
+		usdBalance = account.getAmount("USDT");
+		checkBalancesAfterShort(initialBalance, usdBalance, 40.0, unitPrice);
 
 		Order parent = trade.position().iterator().next();
 		assertEquals(2, parent.getAttachments().size());
@@ -195,20 +323,17 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertEquals(parent, profitOrder.getParent());
 		assertEquals(parent, lossOrder.getParent());
 
-		unitPrice = unitPrice + priceIncrement;
+		double newUnitPrice = unitPrice + priceIncrement;
 
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //this finalizes all orders
-		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //so this should not do anything
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, newUnitPrice)); //this finalizes all orders
+		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, newUnitPrice)); //so this should not do anything
 
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
 		assertEquals(0.0, account.getBalance("ADA").getShorted().doubleValue(), 0.00001);
 
-
 		double currentBalance = account.getAmount("USDT");
-		double totalBuyback = quantity1 * unitPrice;
-		//put margin reserve back, add difference of total sold + rebought, subtract fees to cover.
-		assertEquals(usdBalance + reserved + (totalSale - totalBuyback) - totalBuyback * 0.001, currentBalance, 0.00001);
+		checkBalancesAfterBuyBack(usdBalance, currentBalance, 40.0, unitPrice, newUnitPrice);
 
 		if (priceIncrement > 0) {
 			assertEquals(CANCELLED, lossOrder.getStatus());
