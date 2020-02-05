@@ -241,7 +241,7 @@ public class OrderFillChecker {
 	double checkTradeAfterShortSell(double usdBalanceBeforeTrade, double usdReservedBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
 		Trader trader = trade.trader();
 
-		double feesPaid = totalSpent - totalSpent;
+		double feesPaid = feesOn(totalSpent);
 		double quantityAfterFees = (totalSpent / unitPrice);
 
 		double totalQuantity = quantityAfterFees + previousQuantity;

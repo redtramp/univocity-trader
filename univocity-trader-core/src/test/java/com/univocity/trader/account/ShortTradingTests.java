@@ -47,8 +47,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		double quantity2 = checkTradeAfterShortSell(usdBalance, reservedBalance, trade, MAX, quantity1, 1.2, 1.2, 0.9);
 
 		//average price calculated to include fees to exit
-		double averagePrice = ((quantity1 * 0.9) + (quantity2 * 1.2)) / (quantity1 + quantity2);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001);
+		double averagePrice = (addFees(quantity1 * 0.9) + addFees(quantity2 * 1.2)) / (quantity1 + quantity2);
+		assertEquals(averagePrice, trade.averagePrice(), DELTA);
 
 		usdBalance = account.getAmount("USDT");
 		reservedBalance = account.getMarginReserve("USDT", "ADA").doubleValue();
@@ -56,9 +56,9 @@ public class ShortTradingTests extends OrderFillChecker {
 		//CANCEL
 		tradeOnPrice(trader, 11, 1.1, SELL, true);
 		averagePrice = ((quantity1 * 0.9) + (quantity2 * 1.2)) / (quantity1 + quantity2);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001);
-		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
-		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.001);
+		assertEquals(averagePrice, trade.averagePrice(), DELTA);
+		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
+		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
 
 		tradeOnPrice(trader, 20, 0.1, BUY);
@@ -68,8 +68,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertFalse(trade.stopped());
 		assertEquals("Buy signal", trade.exitReason());
 		assertFalse(trade.tryingToExit());
-		assertEquals(72.062, trade.actualProfitLoss(), 0.001);
-		assertEquals(90.258, trade.actualProfitLossPct(), 0.001);
+		assertEquals(72.062, trade.actualProfitLoss(), DELTA);
+		assertEquals(90.258, trade.actualProfitLossPct(), DELTA);
 	}
 
 
@@ -96,7 +96,7 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		double amountShorted = quantity1 * 0.9;
 		double shortFees = trader.tradingFees().feesOnAmount(amountShorted, Order.Type.LIMIT, Order.Side.SELL);
-		assertEquals(150.0 - shortFees, trader.holdings(), 0.001);
+		assertEquals(150.0 - shortFees, trader.holdings(), DELTA);
 
 
 		tradeOnPrice(trader, 5, 1.0, NEUTRAL);
@@ -109,12 +109,12 @@ public class ShortTradingTests extends OrderFillChecker {
 		checkShortTradeStats(trade, 1.2, 1.2, 0.9);
 		double updatedAmountShorted = quantity1 * 1.2;
 		double shortLoss = updatedAmountShorted - amountShorted;
-		assertEquals(150.0 - shortLoss - shortFees, trader.holdings(), 0.001);
+		assertEquals(150.0 - shortLoss - shortFees, trader.holdings(), DELTA);
 
-		double averagePrice =((quantity1 * 0.9)) / (quantity1);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001);
-		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
-		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.001);
+		double averagePrice = ((quantity1 * 0.9)) / (quantity1);
+		assertEquals(averagePrice, trade.averagePrice(), DELTA);
+		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
+		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
 		//COVER
 		tradeOnPrice(trader, 20, 1.0, BUY);
@@ -123,11 +123,11 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertFalse(trade.stopped());
 		assertEquals("Buy signal", trade.exitReason());
 		assertFalse(trade.tryingToExit());
-		assertEquals(-11.31, trade.actualProfitLoss(), 0.001);
-		assertEquals(-11.333, trade.actualProfitLossPct(), 0.001);
+		assertEquals(-11.31, trade.actualProfitLoss(), DELTA);
+		assertEquals(-11.333, trade.actualProfitLossPct(), DELTA);
 
 		//profit/loss includes fees.
-		assertEquals(150.0 - 11.31, trader.holdings(), 0.001);
+		assertEquals(150.0 - 11.31, trader.holdings(), DELTA);
 
 	}
 
@@ -139,7 +139,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		double totalSale = (quantityAfterFees * unitPrice);
 		double reserved = quantityAfterFees * 0.5 * unitPrice;
 		//remove margin reserve and fees paid to sell everything.
-		assertEquals(initialBalance - (totalSale * 0.001 + reserved), currentBalance, 0.0001);
+		assertEquals(initialBalance - (totalSale * 0.001 + reserved), currentBalance, DELTA);
 	}
 
 	public void checkBalancesAfterBuyBack(double initialBalance, double currentBalance, double quantity, double saleUnitPrice, double unitPrice) {
@@ -151,7 +151,7 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		double totalBuyback = quantityAfterFees * unitPrice;
 		//put margin reserve back, add difference of total sold + rebought, subtract fees to cover.
-		assertEquals(initialBalance + reserved + (totalSale - totalBuyback) - totalBuyback * 0.001, currentBalance, 0.00001);
+		assertEquals(initialBalance + reserved + (totalSale - totalBuyback) - totalBuyback * 0.001, currentBalance, DELTA);
 	}
 
 	@Test
@@ -178,7 +178,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		checkBalancesAfterShort(initialBalance, usdBalance, 40, 1.0);
 		double assetsAt1_0 = account.getShortedAmount("ADA");
 		double marginAt_10 = account.getMarginReserve("USDT", "ADA").doubleValue();
-		assertEquals(assetsAt1_0 * 1.5, marginAt_10, 0.0001);
+		assertEquals(assetsAt1_0 * 1.5, marginAt_10, DELTA);
 
 		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.SELL, SHORT, 2, null);
 		or.setQuantity(BigDecimal.valueOf(quantity1));
@@ -201,9 +201,9 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		double assetsAt0_92 = account.getShortedAmount("ADA") - assetsAt1_0;
 		double marginAt0_92 = account.getMarginReserve("USDT", "ADA").doubleValue() - marginAt_10;
-		assertEquals(assetsAt0_92 * 0.92 * 1.5, marginAt0_92, 0.0001);
+		assertEquals(assetsAt0_92 * 0.92 * 1.5, marginAt0_92, DELTA);
 
-		assertEquals(assetsAt1_0, assetsAt0_92, 0.001);
+		assertEquals(assetsAt1_0, assetsAt0_92, DELTA);
 		assertEquals(61.5616768, account.getBalance("USDT").getFreeAmount());
 		assertEquals(115.0848, account.getMarginReserve("USDT", "ADA").doubleValue());
 		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue());
@@ -328,9 +328,9 @@ public class ShortTradingTests extends OrderFillChecker {
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, newUnitPrice)); //this finalizes all orders
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, newUnitPrice)); //so this should not do anything
 
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
-		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
-		assertEquals(0.0, account.getBalance("ADA").getShorted().doubleValue(), 0.00001);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
 
 		double currentBalance = account.getAmount("USDT");
 		checkBalancesAfterBuyBack(usdBalance, currentBalance, 40.0, unitPrice, newUnitPrice);

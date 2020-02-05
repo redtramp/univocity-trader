@@ -377,10 +377,8 @@ public class SimulatedClientAccount implements ClientAccount {
 						account.subtractFromLockedBalance(asset, order.getQuantity());
 						updateFees(order);
 					} else if (order.isShort()) {
-//						account.addToFreeBalance(funds, locked);
-
 						BigDecimal reserve = account.applyMarginReserve(order.getTotalTraded());
-						account.subtractFromFreeBalance(funds, reserve.subtract(order.getTotalTraded()));
+						account.subtractFromLockedBalance(funds, reserve.subtract(order.getTotalTraded()));
 						account.addToMarginReserveBalance(funds, asset, reserve);
 						account.addToShortedBalance(asset, order.getExecutedQuantity());
 //						account.subtractFromLockedBalance(funds, locked);
