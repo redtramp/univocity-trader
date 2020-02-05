@@ -18,28 +18,28 @@ public class AccountManagerTest extends OrderFillChecker {
 		cfg.maximumInvestmentAmountPerAsset(20.0);
 
 		double funds = account.allocateFunds("ADA", LONG);
-		assertEquals(19.98, funds, 0.001);
+		assertEquals(20, funds, DELTA);
 
 		cfg.maximumInvestmentPercentagePerAsset(2.0);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(7.992, funds, 0.001);
+		assertEquals(8, funds, DELTA);
 
 		cfg.maximumInvestmentAmountPerTrade(6);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(5.994, funds, 0.001);
+		assertEquals(6, funds, DELTA);
 
 		cfg.maximumInvestmentPercentagePerTrade(1.0);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(3.996, funds, 0.001);
+		assertEquals(4, funds, DELTA);
 
 		cfg.maximumInvestmentAmountPerTrade(3);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(2.997, funds, 0.001);
+		assertEquals(3, funds, DELTA);
 
 
 		cfg.minimumInvestmentAmountPerTrade(10);
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(0.0, funds, 0.001);
+		assertEquals(0.0, funds, DELTA);
 
 	}
 
@@ -51,25 +51,25 @@ public class AccountManagerTest extends OrderFillChecker {
 		account.configuration().maximumInvestmentPercentagePerAsset(90.0);
 
 		double funds = account.allocateFunds("ADA", LONG);
-		assertEquals(99.9, funds, 0.001);
+		assertEquals(100.0, funds, DELTA);
 
 		account.setAmount("USDT", 50);
 		account.setAmount("ADA", 50 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(49.95, funds, 0.001);
+		assertEquals(50, funds, DELTA);
 
 		account.setAmount("USDT", 10);
 		account.setAmount("ADA", 90 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(9.99, funds, 0.001);
+		assertEquals(10, funds, DELTA);
 
 		account.setAmount("USDT", 0);
 		account.setAmount("ADA", 100 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(0.0, funds, 0.001);
+		assertEquals(0.0, funds, DELTA);
 	}
 
 	@Test
@@ -80,19 +80,19 @@ public class AccountManagerTest extends OrderFillChecker {
 		account.configuration().maximumInvestmentAmountPerAsset(60.0);
 
 		double funds = account.allocateFunds("ADA", LONG);
-		assertEquals(59.94, funds, 0.001);
+		assertEquals(60, funds, DELTA);
 
 		account.setAmount("USDT", 50);
 		account.setAmount("ADA", 50 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(9.99, funds, 0.001);
+		assertEquals(10, funds, DELTA);
 
 		account.setAmount("USDT", 10);
 		account.setAmount("ADA", 90 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(0.0, funds, 0.001);
+		assertEquals(0.0, funds, DELTA);
 	}
 
 	@Test
@@ -103,25 +103,25 @@ public class AccountManagerTest extends OrderFillChecker {
 		account.configuration().maximumInvestmentPercentagePerTrade(40.0);
 
 		double funds = account.allocateFunds("ADA", LONG);
-		assertEquals(59.94, funds, 0.001); //total funds = 150: 100 USDT + 1 BNB (worth 50 USDT).
+		assertEquals(60, funds, DELTA); //total funds = 150: 100 USDT + 1 BNB (worth 50 USDT).
 
 		account.setAmount("USDT", 60);
 		account.setAmount("ADA", 40 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(59.94, funds, 0.001);
+		assertEquals(60, funds, DELTA);
 
 		account.setAmount("USDT", 20);
 		account.setAmount("ADA", 80 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
 		;
-		assertEquals(19.98, funds, 0.001);
+		assertEquals(20, funds, DELTA);
 		account.setAmount("USDT", 0);
 		account.setAmount("ADA", 100 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(0.0, funds, 0.001);
+		assertEquals(0.0, funds, DELTA);
 	}
 
 	@Test
@@ -132,23 +132,23 @@ public class AccountManagerTest extends OrderFillChecker {
 		account.configuration().maximumInvestmentAmountPerTrade(40.0);
 
 		double funds = account.allocateFunds("ADA", LONG);
-		assertEquals(39.96, funds, 0.001);
+		assertEquals(40.0, funds, DELTA);
 
 		account.setAmount("USDT", 60);
 		account.setAmount("ADA", 40 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(39.96, funds, 0.001);
+		assertEquals(40.0, funds, DELTA);
 
 		account.setAmount("USDT", 20);
 		account.setAmount("ADA", 80 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(19.98, funds, 0.001);
+		assertEquals(20.00, funds, DELTA);
 		account.setAmount("USDT", 0);
 		account.setAmount("ADA", 100 / CLOSE);
 
 		funds = account.allocateFunds("ADA", LONG);
-		assertEquals(0.0, funds, 0.001);
+		assertEquals(0.0, funds, DELTA);
 	}
 }

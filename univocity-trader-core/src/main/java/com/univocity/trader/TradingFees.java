@@ -55,7 +55,7 @@ public interface TradingFees {
 	 */
 	default double feesOnTradedAmount(Order order) {
 		final double amount = order.getTotalTraded().doubleValue();
-		if(amount == 0.0){
+		if (amount == 0.0) {
 			return 0.0;
 		}
 		return feesOnAmount(amount, order.getType(), order.getSide());
@@ -72,6 +72,20 @@ public interface TradingFees {
 	 */
 	default double feesOnAmount(final double amount, Order.Type orderType, Order.Side side) {
 		return amount - takeFee(amount, orderType, side);
+	}
+
+
+	/**
+	 * Return the maximum trading fee amount that could be applied over the total order amount
+	 * (not to be confused with actual the traded/filled amount).
+	 *
+	 * @param order the original order
+	 *
+	 * @return the total fee amount for the given order;
+	 */
+	default double feesOnTotalOrderAmount(Order order) {
+		double amount = order.getTotalOrderAmount().doubleValue();
+		return feesOnAmount(amount, order.getType(), order.getSide());
 	}
 
 	/**

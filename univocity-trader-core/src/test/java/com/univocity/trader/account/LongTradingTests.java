@@ -39,13 +39,13 @@ public class LongTradingTests extends OrderFillChecker {
 		tradeOnPrice(trader, 10, 0.8, BUY);
 		double quantity2 = checkTradeAfterLongBuy(usdBalance, trade, 100, quantity1, 0.8, 1.1, 0.8);
 
-		double averagePrice = ((quantity1 * 1.0) + (quantity2 * 0.8)) / (quantity1 + quantity2);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001);
+		double averagePrice = (addFees(quantity1 * 1.0) + addFees(quantity2 * 0.8)) / (quantity1 + quantity2);
+		assertEquals(averagePrice, trade.averagePrice(), DELTA);
 
 		usdBalance = account.getAmount("USDT");
 		tradeOnPrice(trader, 20, 0.95, SELL);
 		checkTradeAfterLongSell(usdBalance, trade, (quantity1 + quantity2), 0.95, 1.1, 0.8);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001); //average price is about 0.889
+		assertEquals(averagePrice, trade.averagePrice(), DELTA); //average price is about 0.889
 
 		assertFalse(trade.stopped());
 		assertEquals("Sell signal", trade.exitReason());
@@ -78,13 +78,13 @@ public class LongTradingTests extends OrderFillChecker {
 		tradeOnPrice(trader, 10, 0.8, BUY);
 		double quantity2 = checkTradeAfterLongBuy(usdBalance, trade, MAX, quantity1, 0.8, 1.1, 0.8);
 
-		double averagePrice = ((quantity1 * 1.0) + (quantity2 * 0.8)) / (quantity1 + quantity2);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001);
+		double averagePrice = (addFees(quantity1 * 1.0) + addFees(quantity2 * 0.8)) / (quantity1 + quantity2);
+		assertEquals(averagePrice, trade.averagePrice(), DELTA);
 
 		usdBalance = account.getAmount("USDT");
 		tradeOnPrice(trader, 20, 0.95, SELL);
 		checkTradeAfterLongSell(usdBalance, trade, (quantity1 + quantity2), 0.95, 1.1, 0.8);
-		assertEquals(averagePrice, trade.averagePrice(), 0.001); //average price is about 0.889
+		assertEquals(averagePrice, trade.averagePrice(), DELTA); //average price is about 0.889
 
 		assertFalse(trade.stopped());
 		assertEquals("Sell signal", trade.exitReason());
@@ -123,18 +123,18 @@ public class LongTradingTests extends OrderFillChecker {
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 1.5));
 		assertEquals(Order.Status.NEW, o.getStatus());
 		assertFalse(o.isActive());
-		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
+		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.8999));
 		assertEquals(Order.Status.NEW, o.getStatus());
 		assertTrue(o.isActive());
-		assertEquals(usdBalance, account.getAmount("USDT"), 0.001);
+		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 0.92));
 		assertEquals(FILLED, o.getStatus());
 		assertTrue(o.isActive());
-		assertEquals(0.0, account.getAmount("ADA"), 0.001);
-		assertEquals(usdBalance + ((o.getExecutedQuantity().doubleValue() /*quantity*/) * 0.92 /*price*/) * 0.999 /*fees*/, account.getAmount("USDT"), 0.001);
+		assertEquals(0.0, account.getAmount("ADA"), DELTA);
+		assertEquals(usdBalance + ((o.getExecutedQuantity().doubleValue() /*quantity*/) * 0.92 /*price*/) * 0.999 /*fees*/, account.getAmount("USDT"), DELTA);
 	}
 
 	@Test
@@ -157,10 +157,12 @@ public class LongTradingTests extends OrderFillChecker {
 		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
 		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
 
+		double cost = addFees(quantity1);
+
 		usdBalance = account.getAmount("USDT");
-		assertEquals(initialBalance - ((MAX * 0.9999 /*quantity offset*/) * 0.999 /*fees*/), usdBalance, 0.001);
-		assertEquals(60.044, usdBalance, 0.001);
-		assertEquals(MAX * 0.999 * 0.999 * 0.9999, account.getAmount("ADA"), 0.001);
+		assertEquals(initialBalance - cost, usdBalance, DELTA);
+		assertEquals(60.00404, usdBalance, DELTA);
+		assertEquals(quantity1, account.getAmount("ADA"), DELTA);
 
 		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.BUY, LONG, 2, null);
 		or.setQuantity(BigDecimal.valueOf(quantity1));
@@ -170,12 +172,12 @@ public class LongTradingTests extends OrderFillChecker {
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.8999));
 		assertEquals(Order.Status.NEW, o.getStatus());
 		assertFalse(o.isActive());
-		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+		assertEquals(usdBalance - (addFees(o.getTotalOrderAmount())), account.getAmount("USDT"), DELTA);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(4, 1.5));
 		assertTrue(o.isActive());
 		assertEquals(Order.Status.NEW, o.getStatus()); //can't fill because price is too high and we want to pay 1.2
-		assertEquals(usdBalance - o.getTotalOrderAmount().doubleValue(), account.getAmount("USDT"), 0.001);
+		assertEquals(usdBalance - addFees(o.getTotalOrderAmount()), account.getAmount("USDT"), DELTA);
 
 
 		double previousUsdBalance = usdBalance;
@@ -183,8 +185,10 @@ public class LongTradingTests extends OrderFillChecker {
 		assertTrue(o.isActive());
 		assertEquals(FILLED, o.getStatus());
 
-		assertEquals(2 * MAX * 0.999 * 0.999 * 0.9999, account.getAmount("ADA"), 0.001);
-		assertEquals(previousUsdBalance - (((MAX * 0.9999 /*quantity offset*/) * 0.8 /*price*/) * 0.999 /*fees*/), account.getAmount("USDT"), 0.001);
+		assertEquals(o.getExecutedQuantity().doubleValue() + quantity1, account.getAmount("ADA"), DELTA);
+
+		double actualFees = feesOn(o.getTotalTraded());
+		assertEquals(previousUsdBalance - (o.getTotalTraded().doubleValue() + actualFees), account.getAmount("USDT"), DELTA);
 	}
 
 	@Test
@@ -223,8 +227,8 @@ public class LongTradingTests extends OrderFillChecker {
 		double quantity1 = checkTradeAfterLongBracketOrder(usdBalance, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
 		usdBalance = account.getAmount("USDT");
 
-		assertEquals(40.0 / unitPrice * 0.9999 * 0.999 * 0.999, quantity1); //40 minus offset + 2x fees
-		assertEquals(initialBalance - (quantity1 * unitPrice + (quantity1 * unitPrice * 0.001)), usdBalance, 0.0001); //attached orders submitted, so 1x fees again
+		assertEquals(40.0 / unitPrice * 0.9999 * 0.999, quantity1); //40 minus offset + 2x fees
+		assertEquals(initialBalance - (addFees(quantity1 * unitPrice)), usdBalance, DELTA); //attached orders submitted, so 1x fees again
 
 		Order parent = trade.position().iterator().next();
 		assertEquals(2, parent.getAttachments().size());
@@ -254,12 +258,12 @@ public class LongTradingTests extends OrderFillChecker {
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //this finalizes all orders
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, unitPrice)); //so this should not do anything
 
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
-		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
 
 
 		double currentBalance = account.getAmount("USDT");
-		assertEquals(usdBalance + (quantity1 * unitPrice) * 0.999, currentBalance, 0.00001);
+		assertEquals(usdBalance + (quantity1 * unitPrice) * 0.999, currentBalance, DELTA);
 
 		if (priceIncrement > 0) {
 			assertEquals(CANCELLED, lossOrder.getStatus());
@@ -309,10 +313,10 @@ public class LongTradingTests extends OrderFillChecker {
 		double quantity1 = checkTradeAfterLongBracketOrder(usdBalance, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
 		usdBalance = account.getAmount("USDT");
 
-		double amountSpent = (quantity1 * unitPrice + (quantity1 * unitPrice * 0.001));
+		double amountSpent = addFees(quantity1 * unitPrice);
 
-		assertEquals(40.0 / unitPrice * 0.9999 * 0.999 * 0.999, quantity1); //40 minus offset + 2x fees
-		assertEquals(initialBalance - amountSpent, usdBalance, 0.0001); //attached orders submitted, so 1x fees again
+		assertEquals(40.0 / unitPrice * 0.9999 * 0.999, quantity1); //taking offset & fees out
+		assertEquals(initialBalance - amountSpent, usdBalance, DELTA); //attached orders submitted, so 1x fees again
 
 		Order parent = trade.position().iterator().next();
 		assertEquals(2, parent.getAttachments().size());
@@ -341,10 +345,10 @@ public class LongTradingTests extends OrderFillChecker {
 
 		double currentBalance = account.getAmount("USDT");
 
-		assertEquals(0, account.getBalance("ADA").getFree().doubleValue(), 0.00001);
+		assertEquals(0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
 		if (priceIncrement < 0) {
-			assertEquals(quantity1, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
-			assertEquals(initialBalance - amountSpent, currentBalance, 0.00001);
+			assertEquals(quantity1, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+			assertEquals(initialBalance - amountSpent, currentBalance, DELTA);
 
 			assertTrue(lossOrder.isActive());
 			assertFalse(profitOrder.isActive());
@@ -359,7 +363,7 @@ public class LongTradingTests extends OrderFillChecker {
 			double amountSold = quantity1 * unitPrice * 0.999;
 
 			currentBalance = account.getAmount("USDT");
-			assertEquals(initialBalance - amountSpent + amountSold, currentBalance, 0.00001);
+			assertEquals(initialBalance - amountSpent + amountSold, currentBalance, DELTA);
 
 			assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue());
 			assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue());
@@ -373,10 +377,10 @@ public class LongTradingTests extends OrderFillChecker {
 			assertFalse(lossOrder.isActive());
 			assertTrue(profitOrder.isActive());
 
-			assertEquals(0, account.getBalance("ADA").getLocked().doubleValue(), 0.00001);
+			assertEquals(0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
 
 			currentBalance = account.getAmount("USDT");
-			assertEquals(initialBalance - amountSpent + quantity1 * (unitPrice + priceIncrement) * 0.999, currentBalance, 0.00001);
+			assertEquals(initialBalance - amountSpent + quantity1 * (unitPrice + priceIncrement) * 0.999, currentBalance, DELTA);
 			return currentBalance;
 		}
 	}

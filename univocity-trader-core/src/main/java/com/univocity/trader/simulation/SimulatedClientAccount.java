@@ -10,37 +10,17 @@ import java.math.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.config.Allocation.*;
 
 public class SimulatedClientAccount implements ClientAccount {
 
-	private Map<String, Set<PendingOrder>> orders = new HashMap<>();
+	private Map<String, Set<Order>> orders = new HashMap<>();
 	private TradingFees tradingFees;
 	private final AccountManager account;
 	private OrderFillEmulator orderFillEmulator;
 	private final int marginReservePercentage;
 
 	private Map<String, BigDecimal> sharedFunds = new ConcurrentHashMap<>();
-
-	private static class PendingOrder implements Comparable<PendingOrder> {
-		final Order order;
-		final BigDecimal lockedAmount;
-
-		public PendingOrder(Order order, BigDecimal lockedAmount) {
-			this.order = order;
-			this.lockedAmount = round(lockedAmount);
-		}
-
-		@Override
-		public int compareTo(PendingOrder o) {
-			int comparison = Long.compare(this.order.getTime(), o.order.getTime());
-			if (comparison == 0) {
-				comparison = this.order.getOrderId().compareTo(o.order.getOrderId());
-			}
-			return comparison;
-		}
-	}
 
 	public SimulatedClientAccount(AccountConfiguration<?> accountConfiguration, Simulation simulation) {
 		this.marginReservePercentage = accountConfiguration.marginReservePercentage();
@@ -126,11 +106,10 @@ public class SimulatedClientAccount implements ClientAccount {
 					order = createOrder(orderDetails, quantity, unitPrice);
 				}
 			}
-
 		}
 
 		if (order != null) {
-			activateOrder(order, locked);
+			activateOrder(order);
 			List<OrderRequest> attachments = orderDetails.attachedOrderRequests();
 			if (attachments != null) {
 				for (OrderRequest attachment : attachments) {
@@ -143,8 +122,8 @@ public class SimulatedClientAccount implements ClientAccount {
 		return order;
 	}
 
-	private void activateOrder(Order order, BigDecimal locked) {
-		orders.computeIfAbsent(order.getSymbol(), (s) -> new ConcurrentSkipListSet<>()).add(new PendingOrder(order, locked));
+	private void activateOrder(Order order) {
+		orders.computeIfAbsent(order.getSymbol(), (s) -> new ConcurrentSkipListSet<>()).add(order);
 	}
 
 	private DefaultOrder createOrder(OrderRequest request, BigDecimal quantity, BigDecimal price) {
@@ -207,14 +186,14 @@ public class SimulatedClientAccount implements ClientAccount {
 
 	@Override
 	public final synchronized boolean updateOpenOrders(String symbol, Candle candle) {
-		Set<PendingOrder> s = orders.get(symbol);
+		Set<Order> s = orders.get(symbol);
 		if (s == null || s.isEmpty()) {
 			return false;
 		}
-		Iterator<PendingOrder> it = s.iterator();
+		Iterator<Order> it = s.iterator();
 		while (it.hasNext()) {
-			PendingOrder pendingOrder = it.next();
-			DefaultOrder order = (DefaultOrder) pendingOrder.order;
+			Order pendingOrder = it.next();
+			DefaultOrder order = (DefaultOrder) pendingOrder;
 
 			activateAndTryFill(candle, order);
 
@@ -240,18 +219,17 @@ public class SimulatedClientAccount implements ClientAccount {
 				it.remove();
 				order.setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
 
-				BigDecimal amountToUnlock = pendingOrder.lockedAmount;
 				if (order.getParent() != null) { //order that is finalized is an end of a bracket order
-					if (sharedFunds.remove(order.getParentOrderId()) == null) {
-						amountToUnlock = BigDecimal.ZERO; //already unlocked by an order from the same parent.
-					} else {
+					updateBalances(order, candle);
+					if (sharedFunds.remove(order.getParentOrderId()) != null) {
 						for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
 							attached.cancel();
 						}
 					}
+				} else {
+					updateBalances(order, candle);
 				}
 
-				updateBalances(order, amountToUnlock, candle);
 
 				List<Order> attachments = order.getAttachments();
 				if (triggeredOrder == null && attachments != null && !attachments.isEmpty()) {
@@ -281,7 +259,7 @@ public class SimulatedClientAccount implements ClientAccount {
 					}
 				}
 			}
-			activateOrder(attached, locked);
+			activateOrder(attached);
 			account.waitForFill(attached);
 			activateAndTryFill(candle, attached);
 		}
@@ -344,27 +322,44 @@ public class SimulatedClientAccount implements ClientAccount {
 	}
 
 	private BigDecimal getLockedFees(Order order) {
-		double maxAmount = order.getTotalOrderAmount().doubleValue();
-		double lockedFees = maxAmount - getTradingFees().takeFee(maxAmount, order.getType(), order.getSide());
-		return BigDecimal.valueOf(lockedFees);
+		return BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
 	}
 
-	private void updateBalances(Order order, BigDecimal locked, Candle candle) {
+	private void updateFees(Order order) {
+		if (order.isFinalized()) {
+			BigDecimal maxFees = BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
+			BigDecimal actualFees = BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order));
+
+			if (order.isBuy()) {
+				account.subtractFromLockedBalance(order.getFundsSymbol(), maxFees);
+				account.addToFreeBalance(order.getFundsSymbol(), maxFees.subtract(actualFees));
+			} else if (order.isSell()) {
+				account.subtractFromFreeBalance(order.getFundsSymbol(), actualFees);
+			}
+		}
+	}
+
+	private void updateBalances(Order order, Candle candle) {
+		if (order.getParent() != null && order.isCancelled() && !sharedFunds.containsKey(order.getParentOrderId())) {
+			return;
+		}
+
 		final String asset = order.getAssetsSymbol();
 		final String funds = order.getFundsSymbol();
-
-		double amountTraded = order.getTotalTraded().doubleValue();
-//		double fees = amountTraded - getTradingFees().takeFee(amountTraded, order.getType(), order.getSide());
 
 		try {
 			synchronized (account) {
 				if (order.isBuy()) {
 					if (order.isLong()) {
 						account.addToFreeBalance(asset, order.getExecutedQuantity());
-						account.subtractFromLockedBalance(funds, locked);
+						account.subtractFromLockedBalance(funds, order.getTotalOrderAmount());
 
-						BigDecimal unspentAmount = locked.subtract(order.getTotalTraded());
-						account.addToFreeBalance(funds, unspentAmount);
+						BigDecimal unspentAmount = order.getTotalOrderAmount().subtract(order.getTotalTraded());
+						if (unspentAmount.compareTo(BigDecimal.ZERO) != 0) {
+							account.addToFreeBalance(funds, unspentAmount);
+						}
+
+						updateFees(order);
 					} else if (order.isShort()) {
 						BigDecimal quantity = order.getExecutedQuantity();
 						account.subtractFromShortedBalance(asset, quantity);
@@ -377,24 +372,18 @@ public class SimulatedClientAccount implements ClientAccount {
 					}
 				} else if (order.isSell()) {
 					if (order.isLong()) {
-						if (locked.compareTo(BigDecimal.ZERO) > 0) {
-							account.addToFreeBalance(asset, order.getRemainingQuantity());
-							account.addToFreeBalance(funds, order.getTotalTraded());
-
-							BigDecimal lockedFees = getLockedFees(order);
-
-							account.subtractFromLockedBalance(asset, locked.add(lockedFees));
-							account.addToFreeBalance(funds, lockedFees);
-
-						}
+						account.addToFreeBalance(asset, order.getRemainingQuantity());
+						account.addToFreeBalance(funds, order.getTotalTraded());
+						account.subtractFromLockedBalance(asset, order.getQuantity());
+						updateFees(order);
 					} else if (order.isShort()) {
-						account.addToFreeBalance(funds, locked);
+//						account.addToFreeBalance(funds, locked);
 
 						BigDecimal reserve = account.applyMarginReserve(order.getTotalTraded());
 						account.subtractFromFreeBalance(funds, reserve.subtract(order.getTotalTraded()));
 						account.addToMarginReserveBalance(funds, asset, reserve);
 						account.addToShortedBalance(asset, order.getExecutedQuantity());
-						account.subtractFromLockedBalance(funds, locked);
+//						account.subtractFromLockedBalance(funds, locked);
 					}
 				}
 			}

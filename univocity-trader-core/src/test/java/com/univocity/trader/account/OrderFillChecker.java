@@ -6,6 +6,7 @@ import com.univocity.trader.config.*;
 import com.univocity.trader.indicators.*;
 import com.univocity.trader.simulation.*;
 
+import java.math.*;
 import java.util.*;
 import java.util.function.*;
 
@@ -16,6 +17,7 @@ import static junit.framework.TestCase.*;
  */
 public class OrderFillChecker {
 	static final double CLOSE = 0.4379;
+	static final double DELTA = 0.00000001;
 
 	AccountManager getAccountManager() {
 		return getAccountManager(null);
@@ -70,30 +72,60 @@ public class OrderFillChecker {
 
 		double finalBalance = account.getAmount("USDT");
 		double profitLoss = finalBalance - initialBalance;
-		assertEquals(profitLoss, trade.actualProfitLoss(), 0.001);
+		assertEquals(profitLoss, trade.actualProfitLoss(), DELTA);
 
 		double invested = totalInvested + trader.tradingFees().feesOnAmount(totalInvested, Order.Type.LIMIT, Order.Side.SELL);
 		double profitLossPercentage = ((profitLoss / invested)) * 100.0;
-		assertEquals(profitLossPercentage, trade.actualProfitLossPct(), 0.001);
+		assertEquals(profitLossPercentage, trade.actualProfitLossPct(), DELTA);
 	}
 
-	double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice, Function<AccountManager, Double> assetBalance) {
+	double calculateBuyingQuantity(double usdBalanceBeforeTrade, double spendingLimit, double unitPrice) {
+		if (spendingLimit > usdBalanceBeforeTrade) {
+			spendingLimit = usdBalanceBeforeTrade;
+		}
+		double fees = feesOn(spendingLimit);
+		spendingLimit = spendingLimit - fees;
+
+		double quantity = (spendingLimit / unitPrice) * 0.9999; //quantity adjustment to ensure exchange doesn't reject order for mismatching decimals
+		return quantity;
+	}
+
+	double addFees(double total) {
+		return total + feesOn(total);
+	}
+
+	double addFees(BigDecimal total) {
+		return total.doubleValue() + feesOn(total);
+	}
+
+	double feesOn(double total) {
+		return total * 0.001;
+	}
+
+	double feesOn(BigDecimal total) {
+		return total.doubleValue() * 0.001;
+	}
+
+	double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double spendingLimit, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice, Function<AccountManager, Double> assetBalance) {
 		Trader trader = trade.trader();
 
-		double fees = totalSpent * 0.001;
-		double quantityAfterFees = (totalSpent / unitPrice) * 0.9999 - fees; //quantity adjustment to ensure exchange doesn't reject order for mismatching decimals
+		double quantity = calculateBuyingQuantity(usdBalanceBeforeTrade, spendingLimit, unitPrice);
+		double totalCost = quantity * unitPrice;
+		double fees = feesOn(totalCost);
 
-		double totalQuantity = quantityAfterFees + previousQuantity;
+		double totalQuantity = quantity + previousQuantity;
 
 		checkLongTradeStats(trade, unitPrice, maxUnitPrice, minUnitPrice);
 
-		assertEquals(totalQuantity, trade.quantity(), 0.01);
+		assertEquals(totalQuantity, trade.quantity(), DELTA);
 
 		AccountManager account = trader.tradingManager.getAccount();
-		assertEquals(totalQuantity, assetBalance.apply(account), 0.001);
-		assertEquals(usdBalanceBeforeTrade - quantityAfterFees, account.getAmount("USDT"), 0.01);
+		assertEquals(totalQuantity, assetBalance.apply(account), DELTA);
 
-		return quantityAfterFees;
+		double balance = account.getAmount("USDT");
+		assertEquals(usdBalanceBeforeTrade - (totalCost + fees), balance, DELTA);
+
+		return quantity;
 	}
 
 	void checkTradeAfterLongSell(double usdBalanceBeforeTrade, Trade trade, double quantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
@@ -106,10 +138,10 @@ public class OrderFillChecker {
 
 		checkLongTradeStats(trade, unitPrice, maxUnitPrice, minUnitPrice);
 
-		assertEquals(quantity, trade.quantity(), 0.01);
+		assertEquals(quantity, trade.quantity(), DELTA);
 		AccountManager account = trader.tradingManager.getAccount();
-		assertEquals(0.0, account.getAmount("ADA"), 0.001);
-		assertEquals(usdBalanceBeforeTrade + receivedAfterFees, account.getAmount("USDT"), 0.01);
+		assertEquals(0.0, account.getAmount("ADA"), DELTA);
+		assertEquals(usdBalanceBeforeTrade + receivedAfterFees, account.getAmount("USDT"), DELTA);
 	}
 
 	double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
@@ -131,12 +163,12 @@ public class OrderFillChecker {
 		final double minChange = ((minUnitPrice - trade.averagePrice()) / trade.averagePrice()) * 100.0;
 		final double maxChange = ((maxUnitPrice - trade.averagePrice()) / trade.averagePrice()) * 100.0;
 
-		assertEquals(maxChange, trade.maxChange(), 0.01);
-		assertEquals(minChange, trade.minChange(), 0.01);
-		assertEquals(change, trade.priceChangePct(), 0.01);
-		assertEquals(maxUnitPrice, trade.maxPrice());
-		assertEquals(minUnitPrice, trade.minPrice());
-		assertEquals(unitPrice, trade.lastClosingPrice());
+		assertEquals(maxChange, trade.maxChange(), DELTA);
+		assertEquals(minChange, trade.minChange(), DELTA);
+		assertEquals(change, trade.priceChangePct(), DELTA);
+		assertEquals(maxUnitPrice, trade.maxPrice(), DELTA);
+		assertEquals(minUnitPrice, trade.minPrice(), DELTA);
+		assertEquals(unitPrice, trade.lastClosingPrice(), DELTA);
 
 	}
 
@@ -145,12 +177,12 @@ public class OrderFillChecker {
 		final double minChange = ((trade.averagePrice() - maxUnitPrice) / trade.averagePrice()) * 100.0;
 		final double maxChange = ((trade.averagePrice() - minUnitPrice) / trade.averagePrice()) * 100.0;
 
-		assertEquals(maxChange, trade.maxChange(), 0.001);
-		assertEquals(minChange, trade.minChange(), 0.001);
-		assertEquals(change, trade.priceChangePct(), 0.001);
-		assertEquals(maxUnitPrice, trade.maxPrice());
-		assertEquals(minUnitPrice, trade.minPrice());
-		assertEquals(unitPrice, trade.lastClosingPrice());
+		assertEquals(maxChange, trade.maxChange(), DELTA);
+		assertEquals(minChange, trade.minChange(), DELTA);
+		assertEquals(change, trade.priceChangePct(), DELTA);
+		assertEquals(maxUnitPrice, trade.maxPrice(), DELTA);
+		assertEquals(minUnitPrice, trade.minPrice(), DELTA);
+		assertEquals(unitPrice, trade.lastClosingPrice(), DELTA);
 	}
 
 	void checkTradeAfterShortBuy(double usdBalanceBeforeTrade, double usdReservedBeforeTrade, Trade trade, double quantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
@@ -159,14 +191,14 @@ public class OrderFillChecker {
 
 		checkShortTradeStats(trade, unitPrice, maxUnitPrice, minUnitPrice);
 
-		assertEquals(quantity, trade.quantity(), 0.01);
+		assertEquals(quantity, trade.quantity(), DELTA);
 		AccountManager account = trader.tradingManager.getAccount();
-		assertEquals(0.0, account.getAmount("ADA"), 0.001);
+		assertEquals(0.0, account.getAmount("ADA"), DELTA);
 
-		assertEquals(0.0, account.getBalance("ADA").getFreeAmount(), 0.01);
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.01);
-		assertEquals(0.0, account.getBalance("ADA").getShortedAmount(), 0.01);
-		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.01);
+		assertEquals(0.0, account.getBalance("ADA").getFreeAmount(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getShortedAmount(), DELTA);
+		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
 		double pricePaid = quantity * unitPrice;
 		double rebuyCostAfterFees = pricePaid + fees.feesOnAmount(pricePaid, Order.Type.LIMIT, Order.Side.BUY);
@@ -174,7 +206,7 @@ public class OrderFillChecker {
 		double tradeProfit = usdReservedBeforeTrade - rebuyCostAfterFees;
 		double netAccountBalance = usdBalanceBeforeTrade + tradeProfit;
 
-		assertEquals(netAccountBalance, account.getAmount("USDT"), 0.01);
+		assertEquals(netAccountBalance, account.getAmount("USDT"), DELTA);
 	}
 
 
@@ -188,19 +220,19 @@ public class OrderFillChecker {
 
 		checkShortTradeStats(trade, unitPrice, maxUnitPrice, minUnitPrice);
 
-		assertEquals(totalQuantity, trade.quantity(), 0.01);
+		assertEquals(totalQuantity, trade.quantity(), DELTA);
 
 		AccountManager account = trader.tradingManager.getAccount();
-		assertEquals(0.0, account.getAmount("ADA"), 0.001);
-		assertEquals(totalQuantity, account.getShortedAmount("ADA"), 0.001); //orders submitted to buy it all back
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), 0.001);
+		assertEquals(0.0, account.getAmount("ADA"), DELTA);
+		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA); //orders submitted to buy it all back
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
 
 		double inReserve = account.marginReserveFactorPct() * totalSpent;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.001);
+		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
-		assertEquals(freeBalance, account.getAmount("USDT"), 0.01);
+		assertEquals(freeBalance, account.getAmount("USDT"), DELTA);
 
 		return quantityAfterFees;
 	}
@@ -216,18 +248,18 @@ public class OrderFillChecker {
 
 		checkShortTradeStats(trade, unitPrice, maxUnitPrice, minUnitPrice);
 
-		assertEquals(totalQuantity, trade.quantity(), 0.01);
+		assertEquals(totalQuantity, trade.quantity(), DELTA);
 
 		AccountManager account = trader.tradingManager.getAccount();
-		assertEquals(0.0, account.getAmount("ADA"), 0.001);
-		assertEquals(totalQuantity, account.getShortedAmount("ADA"), 0.001);
+		assertEquals(0.0, account.getAmount("ADA"), DELTA);
+		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA);
 
 		double inReserve = account.marginReserveFactorPct() * totalSpent;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.001);
+		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
-		assertEquals(freeBalance, account.getAmount("USDT"), 0.01);
+		assertEquals(freeBalance, account.getAmount("USDT"), DELTA);
 
 		return quantityAfterFees;
 	}

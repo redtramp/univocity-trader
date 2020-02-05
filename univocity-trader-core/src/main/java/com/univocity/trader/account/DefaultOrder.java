@@ -6,11 +6,12 @@ import java.util.concurrent.atomic.*;
 
 import static com.univocity.trader.account.Balance.*;
 
-public class DefaultOrder extends OrderRequest implements Order {
+public class DefaultOrder extends OrderRequest implements Order, Comparable<DefaultOrder> {
 
 	private static final AtomicLong orderIds = new AtomicLong(1);
 
-	private String orderId = String.valueOf(orderIds.incrementAndGet());
+	private final long id = orderIds.incrementAndGet();
+	private String orderId = String.valueOf(id);
 	private BigDecimal executedQuantity;
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
@@ -126,5 +127,11 @@ public class DefaultOrder extends OrderRequest implements Order {
 			}
 		}
 		return out;
+	}
+
+
+	@Override
+	public int compareTo(DefaultOrder o) {
+		return Long.compare(this.id, o.id);
 	}
 }
