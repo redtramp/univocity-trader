@@ -326,14 +326,12 @@ public class SimulatedClientAccount implements ClientAccount {
 
 	private void updateFees(Order order) {
 		if (order.isFinalized()) {
-			BigDecimal actualFees = BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order));
-
 			if (order.isLongBuy() || order.isShortSell()) {
 				BigDecimal maxFees = BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
 				account.subtractFromLockedBalance(order.getFundsSymbol(), maxFees);
-				account.addToFreeBalance(order.getFundsSymbol(), maxFees.subtract(actualFees));
+				account.addToFreeBalance(order.getFundsSymbol(), maxFees.subtract(order.getFeesPaid()));
 			} else if (order.isLongSell() || order.isShortCover()) {
-				account.subtractFromFreeBalance(order.getFundsSymbol(), actualFees);
+				account.subtractFromFreeBalance(order.getFundsSymbol(), order.getFeesPaid());
 			}
 		}
 	}
@@ -347,21 +345,24 @@ public class SimulatedClientAccount implements ClientAccount {
 		final String funds = order.getFundsSymbol();
 
 		final BigDecimal rate = order.consume();
-		final BigDecimal totalAmount = order.getTotalOrderAmount();
+		final BigDecimal totalAmount = order.getTotalOrderAmountAtAveragePrice();
 
 		try {
 			synchronized (account) {
 				if (order.isBuy()) {
 					if (order.isLong()) {
-						account.addToFreeBalance(asset, order.getExecutedQuantity());
-						account.subtractFromLockedBalance(funds, totalAmount);
+						final BigDecimal lockedFunds = order.getTotalOrderAmount();
+						account.addToFreeBalance(asset, rate.multiply(order.getQuantity()));
+						account.subtractFromLockedBalance(funds, rate.multiply(lockedFunds));
 
-						BigDecimal unspentAmount = totalAmount.subtract(order.getTotalTraded());
-						if (unspentAmount.compareTo(BigDecimal.ZERO) != 0) {
-							account.addToFreeBalance(funds, unspentAmount);
+						if (order.isFinalized()) {
+							BigDecimal unspentAmount = lockedFunds.subtract(order.getTotalTraded());
+							if (unspentAmount.compareTo(BigDecimal.ZERO) != 0) {
+								account.addToFreeBalance(funds, unspentAmount);
+							}
+
+							updateFees(order);
 						}
-
-						updateFees(order);
 					} else if (order.isShort()) {
 						if (rate.compareTo(BigDecimal.ZERO) != 0) {
 							account.subtractFromShortedBalance(asset, rate.multiply(order.getQuantity()));

@@ -50,6 +50,13 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return executedQuantity;
 	}
 
+	public BigDecimal getTotalOrderAmountAtAveragePrice() {
+		if(averagePrice.compareTo(BigDecimal.ZERO) == 0){
+			return round(getPrice().multiply(getQuantity()));
+		}
+		return round(averagePrice.multiply(getQuantity()));
+	}
+
 	public void setExecutedQuantity(BigDecimal executedQuantity) {
 		this.executedQuantity = round(executedQuantity);
 	}

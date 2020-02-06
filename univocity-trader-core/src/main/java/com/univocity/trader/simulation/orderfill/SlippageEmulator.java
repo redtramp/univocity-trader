@@ -183,12 +183,11 @@ public class SlippageEmulator implements OrderFillEmulator {
 			price = order.getPrice().doubleValue();
 		}
 
-		double averagePrice = ((currentPrice * currentExecuted) + (price * tradedVolume)) / (currentExecuted + tradedVolume);
-
+		BigDecimal averagePrice = BigDecimal.valueOf(((currentPrice * currentExecuted) + (price * tradedVolume)) / (currentExecuted + tradedVolume));
 		if (order.isMarket()) {
-			order.setPrice(BigDecimal.valueOf(averagePrice));
+			order.setPrice(averagePrice);
 		}
-		order.setAveragePrice(BigDecimal.valueOf(averagePrice));
+		order.setAveragePrice(averagePrice);
 	}
 
 }

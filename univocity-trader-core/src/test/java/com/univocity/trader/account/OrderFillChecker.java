@@ -217,7 +217,6 @@ public class OrderFillChecker {
 	double checkTradeAfterBracketShortSell(double usdBalanceBeforeTrade, double usdReservedBeforeTrade, Trade trade, double totalSpent, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice) {
 		Trader trader = trade.trader();
 
-		double feesPaid = totalSpent - totalSpent;
 		double quantityAfterFees = (totalSpent / unitPrice);
 
 		double totalQuantity = quantityAfterFees + previousQuantity;
@@ -235,7 +234,7 @@ public class OrderFillChecker {
 		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
-		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
+		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesOn(totalSpent));
 		assertEquals(freeBalance, account.getAmount("USDT"), DELTA);
 
 		return quantityAfterFees;
