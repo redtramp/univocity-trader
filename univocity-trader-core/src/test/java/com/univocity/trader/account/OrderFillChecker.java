@@ -94,6 +94,10 @@ public class OrderFillChecker {
 		return total + feesOn(total);
 	}
 
+	double subtractFees(double total) {
+		return total - feesOn(total);
+	}
+
 	double addFees(BigDecimal total) {
 		return total.doubleValue() + feesOn(total);
 	}

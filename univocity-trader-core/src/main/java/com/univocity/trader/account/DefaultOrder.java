@@ -18,6 +18,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	private BigDecimal averagePrice = BigDecimal.ZERO;
 	private List<Order> attachments;
 	private Order parent;
+	private double consumedPct;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -129,6 +130,11 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return out;
 	}
 
+	public BigDecimal consume() {
+		double prev = consumedPct;
+		this.consumedPct = getExecutedQuantity().doubleValue() / getQuantity().doubleValue();
+		return BigDecimal.valueOf(this.consumedPct - prev);
+	}
 
 	@Override
 	public int compareTo(DefaultOrder o) {

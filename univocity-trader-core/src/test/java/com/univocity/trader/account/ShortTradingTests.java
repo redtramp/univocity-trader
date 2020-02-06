@@ -47,7 +47,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		double quantity2 = checkTradeAfterShortSell(usdBalance, reservedBalance, trade, MAX, quantity1, 1.2, 1.2, 0.9);
 
 		//average price calculated to include fees to exit
-		double averagePrice = (addFees(quantity1 * 0.9) + addFees(quantity2 * 1.2)) / (quantity1 + quantity2);
+		double averagePrice = (subtractFees(quantity1 * 0.9) + subtractFees(quantity2 * 1.2)) / (quantity1 + quantity2);
 		assertEquals(averagePrice, trade.averagePrice(), DELTA);
 
 		usdBalance = account.getAmount("USDT");
@@ -55,10 +55,10 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		//CANCEL
 		tradeOnPrice(trader, 11, 1.1, SELL, true);
-		averagePrice = ((quantity1 * 0.9) + (quantity2 * 1.2)) / (quantity1 + quantity2);
+		averagePrice = (subtractFees(quantity1 * 0.9) + subtractFees(quantity2 * 1.2)) / (quantity1 + quantity2);
 		assertEquals(averagePrice, trade.averagePrice(), DELTA);
-		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
 		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
 
 
 		tradeOnPrice(trader, 20, 0.1, BUY);
@@ -68,8 +68,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertFalse(trade.stopped());
 		assertEquals("Buy signal", trade.exitReason());
 		assertFalse(trade.tryingToExit());
-		assertEquals(72.062, trade.actualProfitLoss(), DELTA);
-		assertEquals(90.258, trade.actualProfitLossPct(), DELTA);
+		assertEquals(72.13444444, trade.actualProfitLoss(), DELTA);
+		assertEquals(90.25831386, trade.actualProfitLossPct(), DELTA);
 	}
 
 
