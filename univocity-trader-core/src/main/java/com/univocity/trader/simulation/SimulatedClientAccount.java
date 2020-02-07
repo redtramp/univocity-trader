@@ -254,6 +254,8 @@ public class SimulatedClientAccount implements ClientAccount {
 						processAttachedOrder(order, (DefaultOrder) attachment, candle);
 					}
 				}
+			} else if (order.updated()) {
+				updateBalances(order, candle);
 			}
 
 			if (triggeredOrder != null && triggeredOrder.getQuantity().compareTo(BigDecimal.ZERO) > 0) {

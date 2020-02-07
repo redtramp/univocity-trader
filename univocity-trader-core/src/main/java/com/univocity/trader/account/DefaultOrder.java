@@ -12,13 +12,14 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 
 	private final long id = orderIds.incrementAndGet();
 	private String orderId = String.valueOf(id);
-	private BigDecimal executedQuantity;
+	private BigDecimal executedQuantity = BigDecimal.ZERO;
 	private Order.Status status;
 	private BigDecimal feesPaid = BigDecimal.ZERO;
 	private BigDecimal averagePrice = BigDecimal.ZERO;
 	private List<Order> attachments;
 	private Order parent;
 	private double consumedPct;
+	private BigDecimal previousExecutedQuantity = BigDecimal.ZERO;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -58,6 +59,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	public void setExecutedQuantity(BigDecimal executedQuantity) {
+		previousExecutedQuantity = this.executedQuantity;
 		this.executedQuantity = round(executedQuantity);
 	}
 
@@ -126,7 +128,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return parent == null ? "" : parent.getOrderId();
 	}
 
-	public BigDecimal getQuantity() {
+	public BigDecimal getQuantity() { //TODO: check this implementation in live trading.
 		BigDecimal out = super.getQuantity();
 		if (parent != null && parent.isFinalized()) {
 			BigDecimal p = parent.getExecutedQuantity();
@@ -137,10 +139,15 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return out;
 	}
 
+	public boolean updated() {
+		return previousExecutedQuantity.compareTo(executedQuantity) != 0;
+	}
+
 	public BigDecimal consume() {
 		double prev = consumedPct;
 		double quantity = getQuantity().doubleValue();
 		this.consumedPct = quantity == 0.0 ? 0.0 : getExecutedQuantity().doubleValue() / quantity;
+		this.previousExecutedQuantity = executedQuantity;
 		return BigDecimal.valueOf(this.consumedPct - prev);
 	}
 

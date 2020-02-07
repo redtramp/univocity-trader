@@ -28,6 +28,13 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		double usdBalance = account.getAmount("USDT");
 		tradeOnPrice(trader, 1, 1.0, BUY);
 		final Trade trade = trader.trades().iterator().next();
+		Order order = trade.position().iterator().next();
+
+		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+
+		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+
+
 
 		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, 100, 0.0, 1.0, 1.0, 1.0);
 		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
