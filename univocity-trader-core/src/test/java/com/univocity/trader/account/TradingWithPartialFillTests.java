@@ -16,47 +16,60 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 	}
 
 	@Test
-	public void testLongTradingWithPartialFills() {
+	public void testLongTradingWithPartialFillThenCancel() {
 		AccountManager account = getAccountManager();
 
+		final double MAX = 40.0;
 		final double initialBalance = 100;
 
 		account.setAmount("USDT", initialBalance);
-
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
 		Trader trader = account.getTraderOf("ADAUSDT");
 
-		double usdBalance = account.getAmount("USDT");
 		tradeOnPrice(trader, 1, 1.0, BUY);
 		final Trade trade = trader.trades().iterator().next();
 		Order order = trade.position().iterator().next();
 
 		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
-
 		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(60.00404, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(39.99596, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
 
+		cancelOrder(account, order, 2);
 
+		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100.0, account.getBalance("USDT").getFree().doubleValue() + order.getExecutedQuantity().doubleValue() + feesOn(33));
+		assertEquals(60.00404 + order.getRemainingQuantity().doubleValue() + (feesOn(order.getQuantity()) - feesOn(33.0)), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+	}
 
-		double quantity1 = checkTradeAfterLongBuy(usdBalance, trade, 100, 0.0, 1.0, 1.0, 1.0);
-		tradeOnPrice(trader, 5, 1.1, NEUTRAL);
-		checkLongTradeStats(trade, 1.1, 1.1, 1.0);
+	@Test
+	public void testLongTradingWithPartialFillAverage() {
+		AccountManager account = getAccountManager();
 
-		usdBalance = account.getAmount("USDT");
-		tradeOnPrice(trader, 10, 0.8, BUY);
-		double quantity2 = checkTradeAfterLongBuy(usdBalance, trade, 100, quantity1, 0.8, 1.1, 0.8);
+		final double MAX = 40.0;
+		final double initialBalance = 100;
 
-		double averagePrice = (addFees(quantity1 * 1.0) + addFees(quantity2 * 0.8)) / (quantity1 + quantity2);
-		assertEquals(averagePrice, trade.averagePrice(), DELTA);
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+		Trader trader = account.getTraderOf("ADAUSDT");
 
-		usdBalance = account.getAmount("USDT");
-		tradeOnPrice(trader, 20, 0.95, SELL);
-		checkTradeAfterLongSell(usdBalance, trade, (quantity1 + quantity2), 0.95, 1.1, 0.8);
-		assertEquals(averagePrice, trade.averagePrice(), DELTA); //average price is about 0.889
+		tradeOnPrice(trader, 1, 1.0, BUY);
+		final Trade trade = trader.trades().iterator().next();
+		Order order = trade.position().iterator().next();
 
-		assertFalse(trade.stopped());
-		assertEquals("Sell signal", trade.exitReason());
-		assertFalse(trade.tryingToExit());
+		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(60.00404, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(39.99596, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
 
-		checkProfitLoss(trade, initialBalance, (quantity1 * 1.0) + (quantity2 * 0.8));
+		tradeOnPrice(trader, 2, 0.5, NEUTRAL);
 
+		assertEquals(order.getQuantity().doubleValue(), order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+		assertEquals(order.getQuantity().doubleValue(), account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100.0, account.getBalance("USDT").getFree().doubleValue() + (33 * 1.0) + (6.99596 * 0.5) + feesOn(order.getTotalTraded()));
+		assertEquals(60.00404 + (6.99596 * 0.5), account.getBalance("USDT").getFree().doubleValue(), DELTA); //add amount not spent as price dropped in half
 	}
 }
