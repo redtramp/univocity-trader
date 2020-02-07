@@ -369,23 +369,36 @@ public class SimulatedClientAccount implements ClientAccount {
 			synchronized (account) {
 				if (order.isBuy()) {
 					if (order.isLong()) {
-						final BigDecimal lockedFunds = order.getTotalOrderAmount();
 						account.addToFreeBalance(asset, rate.multiply(order.getQuantity()));
-						account.subtractFromLockedBalance(funds, rate.multiply(lockedFunds));
-
 						if (order.isFinalized()) {
+							final BigDecimal lockedFunds = order.getTotalOrderAmount();
 							BigDecimal unspentAmount = lockedFunds.subtract(order.getTotalTraded());
+
 							if (unspentAmount.compareTo(BigDecimal.ZERO) != 0) {
 								account.addToFreeBalance(funds, unspentAmount);
 							}
 
+							account.subtractFromLockedBalance(funds, lockedFunds);
 							updateFees(order);
 						}
 					} else if (order.isShort()) {
 						if (rate.compareTo(BigDecimal.ZERO) != 0) {
-							account.subtractFromShortedBalance(asset, rate.multiply(order.getQuantity()));
-							account.subtractFromMarginReserveBalance(funds, asset, rate.multiply(totalAmount));
-							updateMarginReserve(asset, funds, candle);
+							BigDecimal covered = rate.multiply(order.getQuantity());
+							BigDecimal shorted = account.getPreciseShortedAmount(asset);
+
+							if (covered.compareTo(shorted) > 0) { //bought to fully cover short and hold long position
+								account.subtractFromShortedBalance(asset, shorted);
+								account.subtractFromMarginReserveBalance(funds, asset, shorted.multiply(order.getAveragePrice()));
+
+								BigDecimal remainderBought = covered.subtract(shorted);
+								account.addToFreeBalance(asset, remainderBought);
+								updateMarginReserve(asset, funds, candle);
+								account.subtractFromFreeBalance(funds, remainderBought.multiply(order.getAveragePrice()));
+							} else {
+								account.subtractFromShortedBalance(asset, covered);
+								account.subtractFromMarginReserveBalance(funds, asset, rate.multiply(totalAmount));
+								updateMarginReserve(asset, funds, candle);
+							}
 						}
 						if (order.isFinalized()) {
 							updateFees(order);

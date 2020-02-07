@@ -539,6 +539,13 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 			if (orderDetails.isCancelled()) {
 				return null;
 			}
+			if (orderDetails.getQuantity().compareTo(BigDecimal.ZERO) == 0) {
+				throw new IllegalArgumentException("Not quantity specified for order " + orderDetails);
+			}
+			if (orderDetails.getPrice().compareTo(BigDecimal.ZERO) == 0 && orderDetails.getType() == Order.Type.LIMIT) {
+				throw new IllegalArgumentException("Not price specified for LIMIT order " + orderDetails);
+			}
+
 			Order order = account.executeOrder(orderDetails);
 			if (order != null) {
 				switch (order.getStatus()) {

@@ -348,4 +348,47 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		return currentBalance;
 	}
+
+	@Test
+	public void testCancellation() {
+		AccountManager account = getAccountManager();
+
+		account.setAmount("USDT", 100.0);
+		long time = 1;
+
+		Order order = submitOrder(account, Order.Side.SELL, SHORT, time++, 4.0);
+		assertEquals(50.04489501, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100.0, account.getBalance("USDT").getLocked().doubleValue() + account.getBalance("USDT").getFree().doubleValue());
+
+		cancelOrder(account, order, time++);
+		assertNoChangeInFunds(account, "USDT", "ADA", 100.0);
+
+		order = submitOrder(account, Order.Side.SELL, SHORT, time++, 4.0);
+		executeOrder(account, order, time++); //actually execute order
+
+		assertEquals(0.00, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(0.00, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(3.9956004, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+
+		order = submitOrder(account, Order.Side.BUY, SHORT, time++, 4.0);
+		cancelOrder(account, order, time++);
+
+		assertEquals(0.00, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(0.00, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(3.9956004, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+
+		order = submitOrder(account, Order.Side.BUY, SHORT, time++, 6.0); //cover short of 4 and buy 2 more
+		executeOrder(account, order, time);
+
+		assertEquals(0.00, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(49.64011999, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(2.0043996, account.getBalance("ADA").getFree().doubleValue(), DELTA);//bought some ADA here because BUY order buys 4 whole units and the short was for 3.9956004 units
+		assertEquals(0.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+	}
+
 }

@@ -51,7 +51,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	public BigDecimal getTotalOrderAmountAtAveragePrice() {
-		if(averagePrice.compareTo(BigDecimal.ZERO) == 0){
+		if (averagePrice.compareTo(BigDecimal.ZERO) == 0) {
 			return round(getPrice().multiply(getQuantity()));
 		}
 		return round(averagePrice.multiply(getQuantity()));
@@ -139,7 +139,8 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 
 	public BigDecimal consume() {
 		double prev = consumedPct;
-		this.consumedPct = getExecutedQuantity().doubleValue() / getQuantity().doubleValue();
+		double quantity = getQuantity().doubleValue();
+		this.consumedPct = quantity == 0.0 ? 0.0 : getExecutedQuantity().doubleValue() / quantity;
 		return BigDecimal.valueOf(this.consumedPct - prev);
 	}
 

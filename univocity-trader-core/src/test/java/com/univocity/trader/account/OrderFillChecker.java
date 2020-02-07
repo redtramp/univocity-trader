@@ -23,6 +23,10 @@ public class OrderFillChecker {
 		return getAccountManager(null);
 	}
 
+	protected void configure(SimulationConfiguration configuration){
+
+	}
+
 	AccountManager getAccountManager(OrderManager orderManager) {
 		SimulationConfiguration configuration = new SimulationConfiguration();
 
@@ -37,6 +41,7 @@ public class OrderFillChecker {
 			accountCfg.orderManager(orderManager);
 		}
 
+		configure(configuration);
 
 		SimulatedClientAccount clientAccount = new SimulatedClientAccount(accountCfg, configuration.simulation());
 		AccountManager account = clientAccount.getAccount();
@@ -279,7 +284,36 @@ public class OrderFillChecker {
 	}
 
 	Candle newTick(long time, double price) {
-		return new Candle(time, time, price, price, price, price, 100.0);
+		return new Candle(time, time, price, price, price, price, 33.0);
 	}
 
+	void executeOrder(AccountManager account, Order order, long time){
+		Trader trader = account.getTraderOf("ADAUSDT");
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, 25.0));
+	}
+
+	void cancelOrder(AccountManager account, Order order, long time) {
+		Trader trader = account.getTraderOf("ADAUSDT");
+		order.cancel();
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, 25.0));
+	}
+
+	void assertNoChangeInFunds(AccountManager account, String symbol, String marginSymbol, double initialBalance) {
+		assertEquals(initialBalance, account.getBalance(symbol).getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance(symbol).getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance(symbol).getShorted().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance(symbol).getMarginReserve(marginSymbol).doubleValue(), DELTA);
+	}
+
+	Order submitOrder(AccountManager account, Order.Side orderSide, Trade.Side tradeSide, long time, double units) {
+		Candle next = newTick(time, 25.0);
+		OrderRequest req = new OrderRequest("ADA", "USDT", orderSide, tradeSide, time, null);
+		req.setQuantity(new BigDecimal(units));
+		req.setPrice(new BigDecimal(25));
+
+		Order order = account.executeOrder(req);
+		assertNotNull(order);
+
+		return order;
+	}
 }

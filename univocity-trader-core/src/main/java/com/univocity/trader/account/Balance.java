@@ -73,8 +73,8 @@ public class Balance implements Cloneable {
 		this.shortedAmount = -1.0;
 	}
 
-	public BigDecimal getMarginReserve(String assetSymboll) {
-		return round(marginReserves.getOrDefault(assetSymboll, BigDecimal.ZERO));
+	public BigDecimal getMarginReserve(String assetSymbol) {
+		return round(marginReserves.getOrDefault(assetSymbol, BigDecimal.ZERO));
 	}
 
 	public Set<String> getShortedAssetSymbols() {
