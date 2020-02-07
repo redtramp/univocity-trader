@@ -44,7 +44,7 @@ public class SimulatedClientAccount implements ClientAccount {
 		String assetsSymbol = orderDetails.getAssetsSymbol();
 		Order.Type orderType = orderDetails.getType();
 		BigDecimal unitPrice = orderDetails.getPrice();
-		final BigDecimal orderAmount = orderDetails.getTotalOrderAmount();
+		BigDecimal orderAmount = orderDetails.getTotalOrderAmount();
 
 		BigDecimal availableFunds = account.getPreciseAmount(fundsSymbol);
 		BigDecimal availableAssets = account.getPreciseAmount(assetsSymbol);
@@ -70,14 +70,32 @@ public class SimulatedClientAccount implements ClientAccount {
 
 		BigDecimal quantity = orderDetails.getQuantity();
 		double fees = getTradingFees().feesOnOrder(orderDetails);
+		boolean hasFundsAvailable = availableFunds.doubleValue() - fees >= orderAmount.doubleValue() - EFFECTIVELY_ZERO;
+		if (!hasFundsAvailable && !orderDetails.isLongSell()) {
+			double maxAmount = orderAmount.doubleValue() - fees;
+			double price = orderDetails.getPrice().doubleValue();
+			if (price <= EFFECTIVELY_ZERO) {
+				price = getAccount().getTraderOf(orderDetails.getSymbol()).lastClosingPrice();
+			}
+			quantity = BigDecimal.valueOf((maxAmount / price) * 0.9999);
+			orderDetails.setQuantity(quantity);
+
+			double currentOrderAmount = orderDetails.getTotalOrderAmount().doubleValue();
+			if (fees < currentOrderAmount && currentOrderAmount / maxAmount > 0.95) { //ensure we didn't create a very small order
+				fees = getTradingFees().feesOnOrder(orderDetails);
+				hasFundsAvailable = availableFunds.doubleValue() - fees >= currentOrderAmount - EFFECTIVELY_ZERO;
+				orderAmount = orderDetails.getTotalOrderAmount();
+			}
+		}
+
 
 		BigDecimal locked = shared == null ? BigDecimal.ZERO : shared;
 
 		DefaultOrder order = null;
-		final boolean hasFundsAvailable = availableFunds.doubleValue() - fees >= orderAmount.doubleValue() - EFFECTIVELY_ZERO;
+
 		if (orderDetails.isBuy() && hasFundsAvailable) {
 			if (shared == null && orderDetails.isLong()) {
-				locked = orderDetails.getTotalOrderAmount();
+				locked = orderAmount;
 				account.lockAmount(fundsSymbol, locked.add(BigDecimal.valueOf(fees)));
 			}
 			order = createOrder(orderDetails, quantity, unitPrice);
@@ -100,7 +118,7 @@ public class SimulatedClientAccount implements ClientAccount {
 			} else if (orderDetails.isShort()) {
 				if (hasFundsAvailable) {
 					if (shared == null) {
-						locked = account.applyMarginReserve(orderDetails.getTotalOrderAmount()).subtract(orderDetails.getTotalOrderAmount());
+						locked = account.applyMarginReserve(orderAmount).subtract(orderAmount);
 						account.lockAmount(fundsSymbol, locked.add(BigDecimal.valueOf(fees)));
 					}
 					order = createOrder(orderDetails, quantity, unitPrice);
@@ -380,9 +398,10 @@ public class SimulatedClientAccount implements ClientAccount {
 						account.subtractFromLockedBalance(asset, order.getQuantity());
 						updateFees(order);
 					} else if (order.isShort()) {
-						BigDecimal totalReserve = account.applyMarginReserve(totalAmount);
+						BigDecimal initialOrderAmount = order.getTotalOrderAmount(); //don't use average fill price, instead use original order amount.
+						BigDecimal totalReserve = account.applyMarginReserve(initialOrderAmount);
 						if (rate.compareTo(BigDecimal.ZERO) != 0) {
-							BigDecimal accountReserve = totalReserve.subtract(totalAmount);
+							BigDecimal accountReserve = totalReserve.subtract(initialOrderAmount);
 							account.addToMarginReserveBalance(funds, asset, rate.multiply(totalReserve));
 							account.subtractFromLockedBalance(funds, rate.multiply(accountReserve));
 							account.addToShortedBalance(asset, rate.multiply(order.getExecutedQuantity()));
@@ -391,10 +410,11 @@ public class SimulatedClientAccount implements ClientAccount {
 						if (order.isFinalized()) {
 							BigDecimal totalTraded = order.getTotalTraded();
 							BigDecimal unusedReserve = totalReserve.subtract(account.applyMarginReserve(totalTraded));
-							BigDecimal unusedFunds = unusedReserve.subtract(totalAmount.subtract(totalTraded));
-
-							account.subtractFromLockedBalance(funds, unusedFunds);
-							account.addToFreeBalance(funds, unusedFunds);
+							if (unusedReserve.compareTo(BigDecimal.ZERO) > 0) {
+								BigDecimal unusedFunds = unusedReserve.subtract(totalAmount.subtract(totalTraded));
+								account.subtractFromLockedBalance(funds, unusedFunds);
+								account.addToFreeBalance(funds, unusedFunds);
+							}
 							updateFees(order);
 						}
 					}

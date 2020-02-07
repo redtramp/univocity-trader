@@ -248,6 +248,12 @@ public class OrderFillChecker {
 		double quantityAfterFees = (totalSpent / unitPrice);
 
 		double totalQuantity = quantityAfterFees + previousQuantity;
+		if(totalSpent + feesPaid > usdBalanceBeforeTrade){
+			totalSpent = (usdBalanceBeforeTrade - feesPaid) * 0.9999;
+			feesPaid = feesOn(totalSpent);
+			quantityAfterFees = totalSpent / unitPrice;
+			totalQuantity = quantityAfterFees + previousQuantity;
+		}
 
 		checkShortTradeStats(trade, unitPrice, maxUnitPrice, minUnitPrice);
 

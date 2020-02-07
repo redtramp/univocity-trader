@@ -128,6 +128,22 @@ public class OrderRequest {
 		return resubmittedFrom;
 	}
 
+	public boolean isLongBuy() {
+		return isLong() && isBuy();
+	}
+
+	public boolean isLongSell() {
+		return isLong() && isSell();
+	}
+
+	public boolean isShortSell() {
+		return isShort() && isSell();
+	}
+
+	public boolean isShortCover() {
+		return isShort() && isBuy();
+	}
+
 	public final boolean isShort() {
 		return tradeSide == Trade.Side.SHORT;
 	}

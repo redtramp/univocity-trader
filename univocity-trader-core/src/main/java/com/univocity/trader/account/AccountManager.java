@@ -621,7 +621,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		this.allTradingManagers.put(tradingManager.getSymbol(), tradingManager);
 	}
 
-	public Trader getTraderOfSymbol(String symbol) {
+	private Trader getTraderOfSymbol(String symbol) {
 		TradingManager a = allTradingManagers.get(symbol);
 		if (a != null) {
 			return a.trader;
