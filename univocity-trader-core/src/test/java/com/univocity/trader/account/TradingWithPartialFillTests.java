@@ -16,7 +16,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 	}
 
 	@Test
-	public void testLongTradingWithPartialFillThenCancel() {
+	public void testLongBuyTradingWithPartialFillThenCancel() {
 		AccountManager account = getAccountManager();
 
 		final double MAX = 40.0;
@@ -45,7 +45,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 	}
 
 	@Test
-	public void testLongTradingWithPartialFillAverage() {
+	public void testLongBuyTradingWithPartialFillAverage() {
 		AccountManager account = getAccountManager();
 
 		final double MAX = 40.0;
@@ -78,7 +78,76 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		double feesNotPaid = feesOn(order.getTotalOrderAmount().doubleValue()) - order.getFeesPaid().doubleValue();
 
 		//add amount not spent as price dropped in half
-		assertEquals(60.00404 + (6.956004 / 2.0) + feesNotPaid, account.getBalance("USDT").getFree().doubleValue(), 0.000001); //using less stringent DELTA here as calculation is correct but assertion fails due to rounding error
+		//using less stringent DELTA here as calculation is correct but assertion fails due to rounding error
+		assertEquals(60.00404 + (6.956004 / 2.0) + feesNotPaid, account.getBalance("USDT").getFree().doubleValue(), 0.000001);
 		assertEquals(100.0, account.getBalance("USDT").getFree().doubleValue() + (33 * 1.0) + (6.956004 * 0.5) + order.getFeesPaid().doubleValue(), 0.000001);
+	}
+
+	@Test
+	public void testLongSellTradingWithPartialFillThenCancel() {
+		AccountManager account = getAccountManager();
+
+		long time = 0;
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		tradeOnPrice(trader, ++time, 1.0, BUY);
+
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(++time, 0.5)); //next tick should fill 6.956004 units at $0.5
+		tradeOnPrice(trader, ++time, 0.8, BUY);
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(++time, 0.6)); //next tick should fill 6.956004 units at $0.4
+
+		Balance ada = account.getBalance("ADA");
+		Balance usdt = account.getBalance("USDT");
+
+		final Trade trade = trader.trades().iterator().next();
+
+		final double quantity = (33 + 6.956004) + (33 + 16.94500500);
+		final double first = 33 * 1.0 + 6.956004 * 0.5;
+		final double second = 33 * 0.8 + 16.94500500 * 0.6;
+
+		assertEquals((addFees(first) + addFees(second)) / (quantity), trade.averagePrice(), DELTA);
+		assertEquals(0.0, ada.getLocked().doubleValue(), DELTA);
+		assertEquals(quantity, ada.getFree().doubleValue(), DELTA);
+		assertEquals(0.0, usdt.getLocked().doubleValue(), DELTA);
+		//again using less stringent DELTA here as calculation is correct but assertion fails due to rounding error
+		assertEquals(100.0 - addFees(first) - addFees(second), usdt.getFree().doubleValue(), 0.000001);
+		final double balance = usdt.getFreeAmount();
+
+		tradeOnPrice(trader, 1, 1.0, SELL);
+		Order order = trade.exitOrders().iterator().next();
+
+		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+		assertEquals(quantity - 33, order.getRemainingQuantity().doubleValue(), DELTA);
+		assertEquals(quantity - 33, ada.getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, ada.getFree().doubleValue(), DELTA);
+		assertEquals(balance + 33, usdt.getFree().doubleValue(), DELTA);
+		assertEquals(0.0, usdt.getLocked().doubleValue(), DELTA);
+
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(++time, 2.0)); //fills another 33 units
+		assertEquals(quantity - 66, order.getRemainingQuantity().doubleValue(), DELTA);
+		assertEquals(quantity - 66, ada.getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, ada.getFree().doubleValue(), DELTA);
+		assertEquals(balance + 33 + (33 * 2.0), usdt.getFree().doubleValue(), DELTA);
+		assertEquals(0.0, usdt.getLocked().doubleValue(), DELTA);
+
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(++time, 1.5)); //fills rest of the order
+		assertEquals(0, order.getRemainingQuantity().doubleValue(), DELTA);
+		assertEquals(0, ada.getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, ada.getFree().doubleValue(), DELTA);
+		assertEquals(balance + subtractFees(33.0 + (33 * 2.0) + ((quantity - 66) * 1.5)), usdt.getFree().doubleValue(), DELTA);
+		assertEquals(0.0, usdt.getLocked().doubleValue(), DELTA);
+//
+//		cancelOrder(account, order, 2);
+//
+//		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+//		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+//		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+//		assertEquals(100.0, account.getBalance("USDT").getFree().doubleValue() + order.getExecutedQuantity().doubleValue() + feesOn(33));
+//		assertEquals(60.00404 + order.getRemainingQuantity().doubleValue() + (feesOn(order.getQuantity()) - feesOn(33.0)), account.getBalance("USDT").getFree().doubleValue(), DELTA);
 	}
 }

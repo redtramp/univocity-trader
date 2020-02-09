@@ -20,6 +20,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	private Order parent;
 	private double consumedPct;
 	private BigDecimal previousExecutedQuantity = BigDecimal.ZERO;
+	private BigDecimal currentFillPrice = BigDecimal.ZERO;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -143,12 +144,20 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return previousExecutedQuantity.compareTo(executedQuantity) != 0;
 	}
 
+	public BigDecimal getLastFillTotalPrice(){
+		return executedQuantity.subtract(previousExecutedQuantity).multiply(currentFillPrice);
+	}
+
 	public BigDecimal consume() {
 		double prev = consumedPct;
 		double quantity = getQuantity().doubleValue();
 		this.consumedPct = quantity == 0.0 ? 0.0 : getExecutedQuantity().doubleValue() / quantity;
 		this.previousExecutedQuantity = executedQuantity;
 		return BigDecimal.valueOf(this.consumedPct - prev);
+	}
+
+	public void setCurrentFillPrice(BigDecimal currentFillPrice){
+		this.currentFillPrice = currentFillPrice;
 	}
 
 	@Override
