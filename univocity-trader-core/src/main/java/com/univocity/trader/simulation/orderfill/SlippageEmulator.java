@@ -188,7 +188,7 @@ public class SlippageEmulator implements OrderFillEmulator {
 			order.setPrice(averagePrice);
 		}
 		order.setAveragePrice(averagePrice);
-		order.setCurrentFillPrice(BigDecimal.valueOf(price));
+		order.setPartialFillDetails(BigDecimal.valueOf(tradedVolume), BigDecimal.valueOf(price));
 	}
 
 }

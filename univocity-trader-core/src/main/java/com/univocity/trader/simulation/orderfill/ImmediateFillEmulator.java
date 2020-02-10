@@ -25,7 +25,7 @@ public class ImmediateFillEmulator implements OrderFillEmulator {
 			} else {
 				order.setAveragePrice(order.getPrice());
 			}
-			order.setCurrentFillPrice(order.getAveragePrice());
+			order.setPartialFillDetails(order.getQuantity(), order.getAveragePrice());
 		}
 	}
 }

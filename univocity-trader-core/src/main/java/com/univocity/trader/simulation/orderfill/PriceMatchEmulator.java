@@ -44,7 +44,7 @@ public class PriceMatchEmulator implements OrderFillEmulator {
 				} else {
 					order.setAveragePrice(order.getPrice());
 				}
-				order.setCurrentFillPrice(order.getAveragePrice());
+				order.setPartialFillDetails(order.getQuantity(), order.getAveragePrice());
 			}
 		} else if (order.getType() == MARKET) {
 			order.setStatus(Order.Status.FILLED);
@@ -55,7 +55,7 @@ public class PriceMatchEmulator implements OrderFillEmulator {
 				order.setAveragePrice(BigDecimal.valueOf((candle.open + candle.close + candle.low) / 3.0));
 			}
 			order.setPrice(order.getAveragePrice());
-			order.setCurrentFillPrice(order.getAveragePrice());
+			order.setPartialFillDetails(order.getQuantity(), order.getAveragePrice());
 		}
 	}
 }

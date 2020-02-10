@@ -745,7 +745,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 			pendingOrders.put(order.getOrderId(), order);
 		}
 
-		if (old.getExecutedQuantity().compareTo(order.getExecutedQuantity()) != 0 || (isSimulated() && order instanceof DefaultOrder && ((DefaultOrder)order).updated())) {
+		if (old.getExecutedQuantity().compareTo(order.getExecutedQuantity()) != 0 || (isSimulated() && order instanceof DefaultOrder && ((DefaultOrder)order).hasPartialFillDetails())) {
 			logOrderStatus("", order);
 			executeUpdateBalances();
 			orderManager.updated(order, traderOf(order), this::resubmit);

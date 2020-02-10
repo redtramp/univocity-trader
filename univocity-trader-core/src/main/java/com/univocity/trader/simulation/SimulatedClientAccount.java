@@ -10,6 +10,7 @@ import java.math.*;
 import java.util.*;
 import java.util.concurrent.*;
 
+import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.config.Allocation.*;
 
 public class SimulatedClientAccount implements ClientAccount {
@@ -254,7 +255,7 @@ public class SimulatedClientAccount implements ClientAccount {
 						processAttachedOrder(order, (DefaultOrder) attachment, candle);
 					}
 				}
-			} else if (order.updated()) {
+			} else if (order.hasPartialFillDetails()) {
 				updateBalances(order, candle);
 			}
 
@@ -364,14 +365,13 @@ public class SimulatedClientAccount implements ClientAccount {
 		final String asset = order.getAssetsSymbol();
 		final String funds = order.getFundsSymbol();
 
-		final BigDecimal lastFillTotalPrice = order.getLastFillTotalPrice();
-		final BigDecimal rate = order.consume();
+		final BigDecimal lastFillTotalPrice = order.getPartialFillTotalPrice();
 
 		try {
 			synchronized (account) {
 				if (order.isBuy()) {
 					if (order.isLong()) {
-						account.addToFreeBalance(asset, rate.multiply(order.getQuantity()));
+						account.addToFreeBalance(asset, order.getPartialFillQuantity());
 						if (order.isFinalized()) {
 							final BigDecimal lockedFunds = order.getTotalOrderAmount();
 							BigDecimal unspentAmount = lockedFunds.subtract(order.getTotalTraded());
@@ -384,8 +384,8 @@ public class SimulatedClientAccount implements ClientAccount {
 							updateFees(order);
 						}
 					} else if (order.isShort()) {
-						if (rate.compareTo(BigDecimal.ZERO) != 0) {
-							BigDecimal covered = rate.multiply(order.getQuantity());
+						if (order.hasPartialFillDetails()) {
+							BigDecimal covered = order.getPartialFillQuantity();
 							BigDecimal shorted = account.getPreciseShortedAmount(asset);
 
 							if (covered.compareTo(shorted) > 0) { //bought to fully cover short and hold long position
@@ -408,24 +408,26 @@ public class SimulatedClientAccount implements ClientAccount {
 					}
 				} else if (order.isSell()) {
 					if (order.isLong()) {
-						if (rate.compareTo(BigDecimal.ZERO) != 0) {
+						if (order.hasPartialFillDetails()) {
 							account.addToFreeBalance(funds, lastFillTotalPrice);
-							account.subtractFromLockedBalance(asset, rate.multiply(order.getQuantity()));
+							account.subtractFromLockedBalance(asset, order.getPartialFillQuantity());
+							double fee = tradingFees.feesOnAmount(order.getPartialFillTotalPrice().doubleValue(), order.getType(), order.getSide());
+							account.subtractFromFreeBalance(order.getFundsSymbol(), BigDecimal.valueOf(fee));
 						}
 
-						if(order.isFinalized()) {
+						if (order.isFinalized()) {
 							account.addToFreeBalance(asset, order.getRemainingQuantity());
 							account.subtractFromLockedBalance(asset, order.getRemainingQuantity());
-							updateFees(order);
 						}
 					} else if (order.isShort()) {
 						BigDecimal initialOrderAmount = order.getTotalOrderAmount(); //don't use average fill price, instead use original order amount.
 						BigDecimal totalReserve = account.applyMarginReserve(initialOrderAmount);
-						if (rate.compareTo(BigDecimal.ZERO) != 0) {
+						if (order.hasPartialFillDetails()) {
 							BigDecimal accountReserve = totalReserve.subtract(initialOrderAmount);
+							BigDecimal rate = order.getPartialFillQuantity().divide(order.getQuantity(), ROUND_MC);
 							account.addToMarginReserveBalance(funds, asset, rate.multiply(totalReserve));
 							account.subtractFromLockedBalance(funds, rate.multiply(accountReserve));
-							account.addToShortedBalance(asset, rate.multiply(order.getExecutedQuantity()));
+							account.addToShortedBalance(asset, order.getPartialFillQuantity());
 						}
 
 						if (order.isFinalized()) {
@@ -443,6 +445,8 @@ public class SimulatedClientAccount implements ClientAccount {
 			}
 		} catch (Exception e) {
 			throw new IllegalStateException("Error updating balances from order " + order, e);
+		} finally {
+			order.clearPartialFillDetails();
 		}
 	}
 
