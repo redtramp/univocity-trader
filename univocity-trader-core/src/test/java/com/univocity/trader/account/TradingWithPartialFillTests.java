@@ -203,4 +203,48 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		assertEquals(balance + subtractFees(33) + subtractFees(33 * 2.0), usdt.getFree().doubleValue(), DELTA);
 		assertEquals(0.0, usdt.getLocked().doubleValue(), DELTA);
 	}
+
+
+	@Test
+	public void testShortSellTradingWithPartialFillThenCancel() {
+		AccountManager account = getAccountManager();
+
+		final double MAX = 40.0;
+		final double initialBalance = 100;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		Balance ada = account.getBalance("ADA");
+		Balance usdt = account.getBalance("USDT");
+
+		tradeOnPrice(trader, 1, 1.0, SELL);
+		final Trade trade = trader.trades().iterator().next();
+		Order order = trade.position().iterator().next();
+
+		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+		assertEquals(0.0, ada.getFree().doubleValue(), DELTA);
+		assertEquals(0.0, ada.getLocked().doubleValue(), DELTA);
+		assertEquals(33.0, ada.getShorted().doubleValue(), DELTA);
+		assertEquals(79.96, usdt.getFree().doubleValue(), DELTA);
+
+		// 7 units remain to be filled. When shorting we use 50% of funds so (7 / 2) + fees on total trade amount remain locked
+		assertEquals(((40 - 33) / 2.0) + feesOn(40.0), usdt.getLocked().doubleValue(), DELTA);
+
+		// margin over filled portion: 33 + 50%
+		assertEquals(33 * 1.5, usdt.getMarginReserve("ADA").doubleValue(), DELTA);
+
+		cancelOrder(account, order, 2);
+
+		assertEquals(33.0, order.getExecutedQuantity().doubleValue(), DELTA); //each tick has volume = 33 units
+		assertEquals(0.0, ada.getFree().doubleValue(), DELTA);
+		assertEquals(0.0, usdt.getLocked().doubleValue(), DELTA);
+
+		double takenFromFunds = (33 / 2.0);
+		assertEquals(initialBalance - takenFromFunds - feesOn(33), usdt.getFreeAmount(), DELTA);
+		assertEquals(33, ada.getShortedAmount(), DELTA);
+		assertEquals(33 * 1.5, usdt.getMarginReserve("ADA").doubleValue(), DELTA);
+	}
+
 }
