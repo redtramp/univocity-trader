@@ -420,18 +420,20 @@ public class SimulatedClientAccount implements ClientAccount {
 							account.subtractFromLockedBalance(asset, order.getRemainingQuantity());
 						}
 					} else if (order.isShort()) {
-						BigDecimal initialOrderAmount = order.getTotalOrderAmount(); //don't use average fill price, instead use original order amount.
-						BigDecimal totalReserve = account.applyMarginReserve(initialOrderAmount);
 						if (order.hasPartialFillDetails()) {
-							BigDecimal accountReserve = totalReserve.subtract(initialOrderAmount);
+							BigDecimal total = order.getPartialFillTotalPrice();
+							BigDecimal totalReserve = account.applyMarginReserve(total);
+							BigDecimal accountReserve = totalReserve.subtract(total);
+							account.addToMarginReserveBalance(funds, asset, totalReserve);
+
 							BigDecimal rate = order.getPartialFillQuantity().divide(order.getQuantity(), ROUND_MC);
-							account.addToMarginReserveBalance(funds, asset, rate.multiply(totalReserve));
 							account.subtractFromLockedBalance(funds, rate.multiply(accountReserve));
 							account.addToShortedBalance(asset, order.getPartialFillQuantity());
 						}
 
 						if (order.isFinalized()) {
 							BigDecimal totalTraded = order.getTotalTraded();
+							BigDecimal totalReserve = account.applyMarginReserve(order.getTotalOrderAmount());
 							BigDecimal unusedReserve = totalReserve.subtract(account.applyMarginReserve(totalTraded));
 							if (unusedReserve.compareTo(BigDecimal.ZERO) > 0) {
 								BigDecimal unusedFunds = unusedReserve.subtract(order.getTotalOrderAmountAtAveragePrice().subtract(totalTraded));
