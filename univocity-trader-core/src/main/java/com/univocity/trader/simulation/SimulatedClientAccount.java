@@ -349,7 +349,7 @@ public class SimulatedClientAccount implements ClientAccount {
 		if (order.isFinalized()) {
 			if (order.isLongBuy() || order.isShortSell()) {
 				BigDecimal maxFees = BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
-				account.subtractFromLockedBalance(order.getFundsSymbol(), maxFees);
+				account.subtractFromLockedOrFreeBalance(order.getFundsSymbol(), maxFees);
 				account.addToFreeBalance(order.getFundsSymbol(), maxFees.subtract(order.getFeesPaid()));
 			} else if (order.isLongSell() || order.isShortCover()) {
 				account.subtractFromFreeBalance(order.getFundsSymbol(), order.getFeesPaid());
@@ -426,8 +426,7 @@ public class SimulatedClientAccount implements ClientAccount {
 							BigDecimal accountReserve = totalReserve.subtract(total);
 							account.addToMarginReserveBalance(funds, asset, totalReserve);
 
-							BigDecimal rate = order.getPartialFillQuantity().divide(order.getQuantity(), ROUND_MC);
-							account.subtractFromLockedBalance(funds, rate.multiply(accountReserve));
+							account.subtractFromLockedOrFreeBalance(funds, asset, accountReserve);
 							account.addToShortedBalance(asset, order.getPartialFillQuantity());
 						}
 

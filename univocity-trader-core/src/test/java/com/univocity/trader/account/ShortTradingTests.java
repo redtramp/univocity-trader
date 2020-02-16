@@ -195,20 +195,20 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		double assetsAt0_90 = account.getShortedAmount("ADA") - assetsAt1_0;
 		assertEquals(40, assetsAt0_90, DELTA);
-		//margin requirement calculated based on initial order price ($0.9 here). Funds are locked according to margin reserve % based on initial price as well.
+		//margin requirement updated based on filled price ($0.92 here). Funds are locked according to margin reserve %.
 		double marginAt0_90 = account.getMarginReserve("USDT", "ADA").doubleValue() - marginAt_10;
-		assertEquals(assetsAt0_90 * 0.9 * 1.5, marginAt0_90, DELTA);
+		assertEquals(assetsAt0_90 * 0.92 * 1.5, marginAt0_90, DELTA);
 
 		assertEquals(assetsAt1_0, assetsAt0_90, DELTA);
 
-		double amountInMargin = (assetsAt1_0 * 1.0 * 1.5) + (assetsAt0_90 * 0.9 * 1.5);
-		assertEquals(amountInMargin, account.getMarginReserve("USDT", "ADA").doubleValue());
+		double amountInMargin = (assetsAt1_0 * 1.0 * 1.5) + (assetsAt0_90 * 0.92 * 1.5);
+		assertEquals(amountInMargin, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
 
-		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue());
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
 
 		double feesPaid = feesOn(assetsAt1_0 * 1.0) + feesOn(assetsAt0_90 * 0.92);
-		double fundsInMargin = (assetsAt1_0 * 1.0 * 0.5) + (assetsAt0_90 * 0.9 * 0.5);
-		assertEquals(initialBalance - fundsInMargin - feesPaid, account.getBalance("USDT").getFreeAmount());
+		double fundsInMargin = (assetsAt1_0 * 1.0 * 0.5) + (assetsAt0_90 * 0.92 * 0.5);
+		assertEquals(initialBalance - fundsInMargin - feesPaid, account.getBalance("USDT").getFreeAmount(), DELTA);
 	}
 
 	@Test

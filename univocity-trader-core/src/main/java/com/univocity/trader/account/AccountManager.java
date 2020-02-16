@@ -149,6 +149,30 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		balance.setMarginReserve(assetSymbol, balance.getMarginReserve(assetSymbol).subtract(amount));
 	}
 
+	public void subtractFromLockedOrFreeBalance(String funds, BigDecimal amount){
+		subtractFromLockedOrFreeBalance(funds, null, amount);
+	}
+
+	public void subtractFromLockedOrFreeBalance(String funds, String asset, BigDecimal amount){
+		Balance balance = getBalance(funds);
+		BigDecimal locked = balance.getLocked();
+
+		if(amount.compareTo(locked) < 0) { //got more locked funds
+			subtractFromLockedBalance(funds, amount);
+		} else { //clear locked funds. Account reserve is greater than locked amount when price jumps a bit
+			subtractFromLockedBalance(funds, locked);
+			BigDecimal remainder = amount.subtract(locked);
+			if(balance.getFree().compareTo(remainder) >= 0){
+				subtractFromFreeBalance(funds, remainder);
+			} else if(asset != null) { //use margin
+				subtractFromMarginReserveBalance(funds, asset, remainder);
+			} else {
+				//will throw exception.
+				subtractFromLockedBalance(funds, amount);
+			}
+		}
+	}
+
 	private void addToLockedBalance(String symbol, BigDecimal amount) {
 		Balance balance = balances.get(symbol);
 		if (balance == null) {

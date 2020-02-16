@@ -269,7 +269,7 @@ public class OrderFillChecker {
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA);
 
 		double inReserve = account.marginReserveFactorPct() * totalSpent;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.0000001);
 
 		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
