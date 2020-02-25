@@ -173,10 +173,11 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		}
 	}
 
-	private void addToLockedBalance(String symbol, BigDecimal amount) {
+	public synchronized void addToLockedBalance(String symbol, BigDecimal amount) {
 		Balance balance = balances.get(symbol);
 		if (balance == null) {
-			throw new IllegalStateException("Can't lock " + amount + " " + symbol + ". No balance available.");
+			balance = new Balance(symbol);
+			balances.put(symbol, balance);
 		}
 		amount = balance.getLocked().add(amount);
 		balance.setLocked(amount);

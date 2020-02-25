@@ -1,8 +1,12 @@
 package com.univocity.trader.account;
 
+import com.univocity.trader.*;
+import com.univocity.trader.candles.*;
 import com.univocity.trader.config.*;
 import org.junit.*;
 
+import static com.univocity.trader.account.Order.Type.*;
+import static com.univocity.trader.account.Trade.Side.*;
 import static com.univocity.trader.indicators.Signal.*;
 import static junit.framework.TestCase.*;
 
@@ -247,4 +251,221 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		assertEquals(33 * 1.5, usdt.getMarginReserve("ADA").doubleValue(), DELTA);
 	}
 
+
+	@Test
+	public void testCancellationOnPartiallyFilledLongBracketOrderProfit() {
+		OrderManager om = new DefaultOrderManager() {
+			@Override
+			public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
+				if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
+					OrderRequest limitSellOnLoss = order.attach(LIMIT, -1.0);
+					OrderRequest takeProfit = order.attach(LIMIT, 1.0);
+				}
+			}
+		};
+
+		AccountManager account = getAccountManager(om);
+
+		account.setAmount("USDT", 100.0);
+		long time = 1;
+
+		Order order = submitOrder(account, Order.Side.BUY, LONG, time++, 200, 0.5, om);
+		assertNotNull(order);
+		assertEquals(99.98990001, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		executeOrder(account, order, 0.5, time++);
+
+		assertEquals(99.98990001, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(0.01009999, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		//fills another 33 ada
+		tick(account.getTraderOf("ADAUSDT"), time++, 0.5);
+
+		assertEquals(99.98990001, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(0.01009999, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(66.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		//tries to sell independently of bracket order. Should not work.
+		Order sellOrder = submitOrder(account, Order.Side.SELL, LONG, time++, 30, 0.5, om);
+		assertNull(sellOrder);
+
+//		cancel partially filled parent, bracket orders activated as some ADA was bought.
+		cancelOrder(account, order, 0.5, time++);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100 - order.getTotalTraded().doubleValue() - order.getFeesPaid().doubleValue(), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		//66 units locked by bracket orders.
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(66.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		//sell some of the ADA, 33 units available to sell only.
+		tick(account.getTraderOf("ADAUSDT"), time++, 0.6);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100 - order.getTotalTraded().doubleValue() - order.getFeesPaid().doubleValue() + subtractFees(33 * 0.6), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		long finalTime = time;
+		order.getAttachments().forEach(o -> cancelOrder(account, o, 0.5, finalTime));
+
+		Order profitOrder = order.getAttachments().get(1);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100 - order.getTotalTraded().doubleValue() - order.getFeesPaid().doubleValue() + profitOrder.getTotalTraded().doubleValue() - profitOrder.getFeesPaid().doubleValue(), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+	}
+
+
+	@Test
+	public void testCancellationOnPartiallyFilledLongBracketOrderLoss() {
+		OrderManager om = new DefaultOrderManager() {
+			@Override
+			public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
+				if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
+					OrderRequest limitSellOnLoss = order.attach(LIMIT, -1.0);
+					OrderRequest takeProfit = order.attach(LIMIT, 1.0);
+				}
+			}
+		};
+
+		AccountManager account = getAccountManager(om);
+
+		account.setAmount("USDT", 100.0);
+		long time = 1;
+
+		Order order = submitOrder(account, Order.Side.BUY, LONG, time++, 200, 0.5, om);
+		assertNotNull(order);
+		assertEquals(99.98990001, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		executeOrder(account, order, 0.5, time++);
+
+		assertEquals(99.98990001, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(0.01009999, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		//fills another 33 ada
+		tick(account.getTraderOf("ADAUSDT"), time++, 0.5);
+
+		assertEquals(99.98990001, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(0.01009999, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(66.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		//tries to sell independently of bracket order. Should not work.
+		Order sellOrder = submitOrder(account, Order.Side.SELL, LONG, time++, 30, 0.5, om);
+		assertNull(sellOrder);
+
+//		cancel partially filled parent, bracket orders activated as some ADA was bought.
+		cancelOrder(account, order, 0.5, time++);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100 - order.getTotalTraded().doubleValue() - order.getFeesPaid().doubleValue(), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		//66 units locked by bracket orders.
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(66.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		double price = 0.5 * 0.99; //loss of 1%
+
+		//sell some of the ADA, 33 units available to sell only.
+		tick(account.getTraderOf("ADAUSDT"), time++, price);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100 - order.getTotalTraded().doubleValue() - order.getFeesPaid().doubleValue() + subtractFees(33 * price), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		long finalTime = time;
+		order.getAttachments().forEach(o -> cancelOrder(account, o, 0.5, finalTime));
+
+		Order lossOrder = order.getAttachments().get(0);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(100 - order.getTotalTraded().doubleValue() - order.getFeesPaid().doubleValue() + lossOrder.getTotalTraded().doubleValue() - lossOrder.getFeesPaid().doubleValue(), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+	}
+
+	@Test
+	public void testCancellationOnPartiallyFilledShortBracketOrderProfit() {
+		OrderManager om = new DefaultOrderManager() {
+			@Override
+			public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
+				if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
+					OrderRequest limitSellOnLoss = order.attach(LIMIT, -1.0);
+					OrderRequest takeProfit = order.attach(LIMIT, 1.0);
+				}
+			}
+		};
+
+		AccountManager account = getAccountManager(om);
+
+		account.setAmount("USDT", 100.0);
+		long time = 1;
+
+		Order order = submitOrder(account, Order.Side.SELL, SHORT, time++, 200, 0.5, om);
+		assertNotNull(order);
+		assertEquals(50.04489501, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		executeOrder(account, order, 0.5, time++);
+
+		assertEquals((33 * 0.5) + (33 * 0.5 / 2.0), account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA); //proceeds + 50% reserve
+		assertEquals(50.04489501 - (33 * 0.5 / 2.0), account.getBalance("USDT").getLocked().doubleValue(), DELTA); //50% of traded amount moved from locked to margin reserve
+		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+
+		//fills another 33 ada
+		tick(account.getTraderOf("ADAUSDT"), time++, 0.5);
+
+		assertEquals((66 * 0.5) + (66 * 0.5 / 2.0), account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA); //proceeds + 50% reserve
+		assertEquals(50.04489501 - (66 * 0.5 / 2.0), account.getBalance("USDT").getLocked().doubleValue(), DELTA);  //50% of traded amount moved from locked to margin reserve
+		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(66.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+
+//		cancel partially filled parent, bracket orders activated as 66 ADA were sold short.
+		cancelOrder(account, order, 0.5, time++);
+
+		final double originalReserve = (66 * 0.5) + (66 * 0.5 / 2.0);//proceeds + 50% reserve
+		assertEquals(originalReserve, account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		final double free = 49.95510499 + 50.04489501 - ((66 * 0.5 / 2.0) + feesOn(66 * 0.5));//amount previously locked returned for margin reserve not used and moved back to free funds + fees to buy shorted assets back
+		assertEquals(free, account.getBalance("USDT").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(66.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+
+		//buy some of the ADA back, 33 units available to buy only.
+		tick(account.getTraderOf("ADAUSDT"), time++, 0.4);
+
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(33.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+
+		double newReserve = (33 * 0.4) + (33 * 0.4 / 2.0);
+		assertEquals(newReserve, account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA);
+
+		double originalReserveRemaining = originalReserve - 33 * 0.4; //subtract amount bought back from original reserve
+		double freed = originalReserveRemaining - newReserve;
+		assertEquals(free + freed, account.getBalance("USDT").getFree().doubleValue(), DELTA); //amount returned from margin reserve
+
+		long finalTime = time;
+		order.getAttachments().forEach(o -> cancelOrder(account, o, 0.5, finalTime));
+
+		assertEquals(33.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+
+		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(newReserve, account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA);
+		assertEquals(free + freed - feesOn(33 * 0.4), account.getBalance("USDT").getFree().doubleValue(), DELTA);
+
+	}
 }

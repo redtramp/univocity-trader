@@ -23,7 +23,7 @@ public class OrderFillChecker {
 		return getAccountManager(null);
 	}
 
-	protected void configure(SimulationConfiguration configuration){
+	protected void configure(SimulationConfiguration configuration) {
 
 	}
 
@@ -66,9 +66,15 @@ public class OrderFillChecker {
 			if (cancel) {
 				trader.trades().iterator().next().position().forEach(Order::cancel);
 			}
-			trader.tradingManager.updateOpenOrders(trader.symbol(), next = newTick(time + 1, price));
+			next = tick(trader, time, price);
 			trader.trade(next, Signal.NEUTRAL, null);
 		}
+	}
+
+	Candle tick(Trader trader, long time, double price) {
+		Candle out = newTick(time + 1, price);
+		trader.tradingManager.updateOpenOrders(trader.symbol(), out);
+		return out;
 	}
 
 	void checkProfitLoss(Trade trade, double initialBalance, double totalInvested) {
@@ -253,7 +259,7 @@ public class OrderFillChecker {
 		double quantityAfterFees = (totalSpent / unitPrice);
 
 		double totalQuantity = quantityAfterFees + previousQuantity;
-		if(totalSpent + feesPaid > usdBalanceBeforeTrade){
+		if (totalSpent + feesPaid > usdBalanceBeforeTrade) {
 			totalSpent = (usdBalanceBeforeTrade - feesPaid) * 0.9999;
 			feesPaid = feesOn(totalSpent);
 			quantityAfterFees = totalSpent / unitPrice;
@@ -287,15 +293,23 @@ public class OrderFillChecker {
 		return new Candle(time, time, price, price, price, price, 33.0);
 	}
 
-	void executeOrder(AccountManager account, Order order, long time){
+	void executeOrder(AccountManager account, Order order, long time) {
+		executeOrder(account, order, 25.0, time);
+	}
+
+	void executeOrder(AccountManager account, Order order, double price, long time) {
 		Trader trader = account.getTraderOf("ADAUSDT");
-		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, 25.0));
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, price));
 	}
 
 	void cancelOrder(AccountManager account, Order order, long time) {
+		cancelOrder(account, order, 25, time);
+	}
+
+	void cancelOrder(AccountManager account, Order order, double price, long time) {
 		Trader trader = account.getTraderOf("ADAUSDT");
 		order.cancel();
-		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, 25.0));
+		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, price));
 	}
 
 	void assertNoChangeInFunds(AccountManager account, String symbol, String marginSymbol, double initialBalance) {
@@ -305,14 +319,22 @@ public class OrderFillChecker {
 		assertEquals(0.0, account.getBalance(symbol).getMarginReserve(marginSymbol).doubleValue(), DELTA);
 	}
 
+
 	Order submitOrder(AccountManager account, Order.Side orderSide, Trade.Side tradeSide, long time, double units) {
+		return submitOrder(account, orderSide, tradeSide, time, units, 25, null);
+	}
+
+	Order submitOrder(AccountManager account, Order.Side orderSide, Trade.Side tradeSide, long time, double units, double price, OrderManager orderManager) {
 		Candle next = newTick(time, 25.0);
 		OrderRequest req = new OrderRequest("ADA", "USDT", orderSide, tradeSide, time, null);
 		req.setQuantity(new BigDecimal(units));
-		req.setPrice(new BigDecimal(25));
+		req.setPrice(new BigDecimal(price));
+
+		if (orderManager != null) {
+			orderManager.prepareOrder(null, null, req, next);
+		}
 
 		Order order = account.executeOrder(req);
-		assertNotNull(order);
 
 		return order;
 	}

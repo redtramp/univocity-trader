@@ -10,7 +10,6 @@ import java.math.*;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.config.Allocation.*;
 
 public class SimulatedClientAccount implements ClientAccount {
@@ -20,8 +19,6 @@ public class SimulatedClientAccount implements ClientAccount {
 	private final AccountManager account;
 	private OrderFillEmulator orderFillEmulator;
 	private final int marginReservePercentage;
-
-	private Map<String, BigDecimal> sharedFunds = new ConcurrentHashMap<>();
 
 	public SimulatedClientAccount(AccountConfiguration<?> accountConfiguration, Simulation simulation) {
 		this.marginReservePercentage = accountConfiguration.marginReservePercentage();
@@ -57,18 +54,6 @@ public class SimulatedClientAccount implements ClientAccount {
 			}
 		}
 
-		BigDecimal shared = null;
-		if (orderDetails instanceof DefaultOrder) {
-			shared = sharedFunds.get(((DefaultOrder) orderDetails).getParentOrderId());
-			if (shared != null) {
-				if (orderDetails.isBuy()) {
-					availableFunds = shared;
-				} else if (orderDetails.isSell()) {
-					availableAssets = shared;
-				}
-			}
-		}
-
 		BigDecimal quantity = orderDetails.getQuantity();
 		double fees = getTradingFees().feesOnOrder(orderDetails);
 		boolean hasFundsAvailable = availableFunds.doubleValue() - fees >= orderAmount.doubleValue() - EFFECTIVELY_ZERO;
@@ -90,14 +75,11 @@ public class SimulatedClientAccount implements ClientAccount {
 		}
 
 
-		BigDecimal locked = shared == null ? BigDecimal.ZERO : shared;
-
 		DefaultOrder order = null;
 
 		if (orderDetails.isBuy() && hasFundsAvailable) {
-			if (shared == null && orderDetails.isLong()) {
-				locked = orderAmount;
-				account.lockAmount(fundsSymbol, locked.add(BigDecimal.valueOf(fees)));
+			if (orderDetails.isLong()) {
+				account.lockAmount(fundsSymbol, orderAmount.add(BigDecimal.valueOf(fees)));
 			}
 			order = createOrder(orderDetails, quantity, unitPrice);
 
@@ -110,18 +92,13 @@ public class SimulatedClientAccount implements ClientAccount {
 					}
 				}
 				if (availableAssets.compareTo(quantity) >= 0) {
-					if (shared == null) {
-						locked = orderDetails.getQuantity();
-						account.lockAmount(assetsSymbol, locked);
-					}
+					account.lockAmount(assetsSymbol, orderDetails.getQuantity());
 					order = createOrder(orderDetails, quantity, unitPrice);
 				}
 			} else if (orderDetails.isShort()) {
 				if (hasFundsAvailable) {
-					if (shared == null) {
-						locked = account.applyMarginReserve(orderAmount).subtract(orderAmount);
-						account.lockAmount(fundsSymbol, locked.add(BigDecimal.valueOf(fees)));
-					}
+					BigDecimal locked = account.applyMarginReserve(orderAmount).subtract(orderAmount);
+					account.lockAmount(fundsSymbol, locked.add(BigDecimal.valueOf(fees)));
 					order = createOrder(orderDetails, quantity, unitPrice);
 				}
 			}
@@ -191,7 +168,7 @@ public class SimulatedClientAccount implements ClientAccount {
 	}
 
 	private void activateAndTryFill(Candle candle, DefaultOrder order) {
-		if (candle != null && order != null) {
+		if (candle != null && order != null && !order.isCancelled()) {
 			if (!order.isActive()) {
 				if (triggeredBy(order, null, candle)) {
 					order.activate();
@@ -238,12 +215,10 @@ public class SimulatedClientAccount implements ClientAccount {
 				it.remove();
 				order.setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
 
-				if (order.getParent() != null) { //order that is finalized is an end of a bracket order
+				if (order.getParent() != null) { //order is child of a bracket order
 					updateBalances(order, candle);
-					if (sharedFunds.remove(order.getParentOrderId()) != null) {
-						for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
-							attached.cancel();
-						}
+					for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
+						attached.cancel();
 					}
 				} else {
 					updateBalances(order, candle);
@@ -270,15 +245,6 @@ public class SimulatedClientAccount implements ClientAccount {
 		BigDecimal locked = parent.getExecutedQuantity();
 		if (locked.compareTo(BigDecimal.ZERO) > 0) {
 			attached.updateTime(candle != null ? candle.openTime : parent.getTime());
-			if (sharedFunds.put(parent.getOrderId(), locked) == null) {
-				if (attached.isLong()) {
-					if (attached.isSell()) {
-						account.lockAmount(attached.getAssetsSymbol(), locked);
-					} else {
-						account.lockAmount(attached.getFundsSymbol(), locked);
-					}
-				}
-			}
 			activateOrder(attached);
 			account.waitForFill(attached);
 			activateAndTryFill(candle, attached);
@@ -358,10 +324,6 @@ public class SimulatedClientAccount implements ClientAccount {
 	}
 
 	private void updateBalances(DefaultOrder order, Candle candle) {
-		if (order.getParent() != null && order.isCancelled() && !sharedFunds.containsKey(order.getParentOrderId())) {
-			return;
-		}
-
 		final String asset = order.getAssetsSymbol();
 		final String funds = order.getFundsSymbol();
 
@@ -371,7 +333,11 @@ public class SimulatedClientAccount implements ClientAccount {
 			synchronized (account) {
 				if (order.isBuy()) {
 					if (order.isLong()) {
-						account.addToFreeBalance(asset, order.getPartialFillQuantity());
+						if (order.getAttachments() != null) { //to be used by attached orders
+							account.addToLockedBalance(asset, order.getPartialFillQuantity());
+						} else {
+							account.addToFreeBalance(asset, order.getPartialFillQuantity());
+						}
 						if (order.isFinalized()) {
 							final BigDecimal lockedFunds = order.getTotalOrderAmount();
 							BigDecimal unspentAmount = lockedFunds.subtract(order.getTotalTraded());
@@ -402,9 +368,7 @@ public class SimulatedClientAccount implements ClientAccount {
 								updateMarginReserve(asset, funds, candle);
 							}
 						}
-						if (order.isFinalized()) {
-							updateFees(order);
-						}
+						updateFees(order);
 					}
 				} else if (order.isSell()) {
 					if (order.isLong()) {
@@ -416,8 +380,10 @@ public class SimulatedClientAccount implements ClientAccount {
 						}
 
 						if (order.isFinalized()) {
-							account.addToFreeBalance(asset, order.getRemainingQuantity());
-							account.subtractFromLockedBalance(asset, order.getRemainingQuantity());
+							if (order.getParent() == null || (order.getParent().getAttachments().size() > 1 && order.getExecutedQuantity().compareTo(BigDecimal.ZERO) > 0)) {
+								account.addToFreeBalance(asset, order.getRemainingQuantity());
+								account.subtractFromLockedBalance(asset, order.getRemainingQuantity());
+							}
 						}
 					} else if (order.isShort()) {
 						if (order.hasPartialFillDetails()) {
