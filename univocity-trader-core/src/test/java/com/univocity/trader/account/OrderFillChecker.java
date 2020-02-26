@@ -109,17 +109,10 @@ public class OrderFillChecker {
 		return total - feesOn(total);
 	}
 
-	double addFees(BigDecimal total) {
-		return total.doubleValue() + feesOn(total);
-	}
-
 	double feesOn(double total) {
 		return total * 0.001;
 	}
 
-	double feesOn(BigDecimal total) {
-		return total.doubleValue() * 0.001;
-	}
 
 	double checkTradeAfterLongBuy(double usdBalanceBeforeTrade, Trade trade, double spendingLimit, double previousQuantity, double unitPrice, double maxUnitPrice, double minUnitPrice, Function<AccountManager, Double> assetBalance) {
 		Trader trader = trade.trader();
@@ -168,7 +161,7 @@ public class OrderFillChecker {
 		return checkTradeAfterLongBuy(usdBalanceBeforeTrade, trade, totalSpent, previousQuantity, unitPrice, maxUnitPrice, minUnitPrice,
 				//bracket order locks amount bought to sell it back in two opposing orders.
 				//locked balance must be relative to amount bought in parent order, and both orders share the same locked balance.
-				(account) -> account.getBalance("ADA").getLocked().doubleValue());
+				(account) -> account.getBalance("ADA").getLocked());
 
 	}
 
@@ -211,9 +204,9 @@ public class OrderFillChecker {
 		assertEquals(0.0, account.getAmount("ADA"), DELTA);
 
 		assertEquals(0.0, account.getBalance("ADA").getFreeAmount(), DELTA);
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getShortedAmount(), DELTA);
-		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(0.0, account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		double pricePaid = quantity * unitPrice;
 		double rebuyCostAfterFees = pricePaid + fees.feesOnAmount(pricePaid, Order.Type.LIMIT, Order.Side.BUY);
@@ -239,10 +232,10 @@ public class OrderFillChecker {
 		AccountManager account = trader.tradingManager.getAccount();
 		assertEquals(0.0, account.getAmount("ADA"), DELTA);
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA); //orders submitted to buy it all back
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
 
 		double inReserve = account.marginReserveFactorPct() * totalSpent;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesOn(totalSpent));
@@ -275,7 +268,7 @@ public class OrderFillChecker {
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA);
 
 		double inReserve = account.marginReserveFactorPct() * totalSpent;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA").doubleValue(), 0.0000001);
+		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA"), 0.0000001);
 
 		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
@@ -313,10 +306,10 @@ public class OrderFillChecker {
 	}
 
 	void assertNoChangeInFunds(AccountManager account, String symbol, String marginSymbol, double initialBalance) {
-		assertEquals(initialBalance, account.getBalance(symbol).getFree().doubleValue(), DELTA);
-		assertEquals(0.0, account.getBalance(symbol).getLocked().doubleValue(), DELTA);
-		assertEquals(0.0, account.getBalance(symbol).getShorted().doubleValue(), DELTA);
-		assertEquals(0.0, account.getBalance(symbol).getMarginReserve(marginSymbol).doubleValue(), DELTA);
+		assertEquals(initialBalance, account.getBalance(symbol).getFree(), DELTA);
+		assertEquals(0.0, account.getBalance(symbol).getLocked(), DELTA);
+		assertEquals(0.0, account.getBalance(symbol).getShorted(), DELTA);
+		assertEquals(0.0, account.getBalance(symbol).getMarginReserve(marginSymbol), DELTA);
 	}
 
 
@@ -327,8 +320,8 @@ public class OrderFillChecker {
 	Order submitOrder(AccountManager account, Order.Side orderSide, Trade.Side tradeSide, long time, double units, double price, OrderManager orderManager) {
 		Candle next = newTick(time, 25.0);
 		OrderRequest req = new OrderRequest("ADA", "USDT", orderSide, tradeSide, time, null);
-		req.setQuantity(new BigDecimal(units));
-		req.setPrice(new BigDecimal(price));
+		req.setQuantity(units);
+		req.setPrice(price);
 
 		if (orderManager != null) {
 			orderManager.prepareOrder(null, null, req, next);

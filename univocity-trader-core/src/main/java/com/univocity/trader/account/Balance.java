@@ -11,10 +11,10 @@ public class Balance implements Cloneable {
 	public static final Balance ZERO = new Balance("");
 
 	private final String symbol;
-	private BigDecimal free = BigDecimal.ZERO;
-	private BigDecimal locked = BigDecimal.ZERO;
-	private BigDecimal shorted = BigDecimal.ZERO;
-	private Map<String, BigDecimal> marginReserves = new ConcurrentHashMap<>();
+	private double free = 0.0;
+	private double locked = 0.0;
+	private double shorted = 0.0;
+	private Map<String, Double> marginReserves = new ConcurrentHashMap<>();
 	private double freeAmount = -1.0;
 	private double shortedAmount = -1.0;
 
@@ -26,82 +26,82 @@ public class Balance implements Cloneable {
 
 	public Balance(String symbol, double free) {
 		this.symbol = symbol;
-		this.free = ensurePositive(BigDecimal.valueOf(free), "free balance");
+		this.free = ensurePositive(free, "free balance");
 	}
 
 	public String getSymbol() {
 		return symbol;
 	}
 
-	public BigDecimal getFree() {
+	public double getFree() {
 		return free;
 	}
 
 	public double getFreeAmount() {
 		if (freeAmount < 0.0) {
-			freeAmount = free.doubleValue();
+			freeAmount = free;
 		}
 		return freeAmount;
 	}
 
-	public void setFree(BigDecimal free) {
+	public void setFree(double free) {
 		this.free = ensurePositive(free, "free balance");
 		this.freeAmount = -1.0;
 	}
 
-	public BigDecimal getLocked() {
+	public double getLocked() {
 		return locked;
 	}
 
-	public void setLocked(BigDecimal locked) {
+	public void setLocked(double locked) {
 		this.locked = ensurePositive(locked, "locked balance");
 	}
 
 	public double getShortedAmount() {
 		if (shortedAmount < 0.0) {
-			shortedAmount = shorted.doubleValue();
+			shortedAmount = shorted;
 		}
 		return shortedAmount;
 	}
 
-	public BigDecimal getShorted() {
+	public double getShorted() {
 		return shorted;
 	}
 
-	public void setShorted(BigDecimal shorted) {
+	public void setShorted(double shorted) {
 		this.shorted = ensurePositive(shorted, "shorted balance");
 		this.shortedAmount = -1.0;
 	}
 
-	public BigDecimal getMarginReserve(String assetSymbol) {
-		return round(marginReserves.getOrDefault(assetSymbol, BigDecimal.ZERO));
+	public double getMarginReserve(String assetSymbol) {
+		return round(marginReserves.getOrDefault(assetSymbol, 0.0));
 	}
 
 	public Set<String> getShortedAssetSymbols() {
 		return marginReserves.keySet();
 	}
 
-	public void setMarginReserve(String assetSymbol, BigDecimal marginReserve) {
+	public void setMarginReserve(String assetSymbol, double marginReserve) {
 		marginReserve = ensurePositive(marginReserve, "margin reserve");
-		if (marginReserve.compareTo(BigDecimal.ZERO) <= 0) {
+		if (marginReserve <= 0) {
 			this.marginReserves.remove(assetSymbol);
 		} else {
 			this.marginReserves.put(assetSymbol, marginReserve);
 		}
 	}
 
-	private BigDecimal ensurePositive(BigDecimal bd, String field) {
-		//System.out.println(symbol + " " + field + " = " + bd.toPlainString());
-		bd = round(bd == null ? BigDecimal.ZERO : bd);
-		if (bd.compareTo(BigDecimal.ZERO) >= 0) {
+	private double ensurePositive(double bd, String field) {
+		System.out.println(symbol + " " + field + " = " + roundStr(bd));
+		bd = round(BigDecimal.valueOf(bd));
+		if (bd >= 0) {
 			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
 			return bd;
 		}
 		throw new IllegalStateException(symbol + ": can't set " + field + " to  " + bd);
 	}
 
-	public BigDecimal getTotal() {
-		return round(free.add(locked));
+	public double getTotal() {
+		return round(free + locked);
 	}
 
 	@Override
@@ -115,15 +115,27 @@ public class Balance implements Cloneable {
 				'}';
 	}
 
-	public static final BigDecimal round(BigDecimal bd) {
+	private static final BigDecimal roundBd(double bd) {
+		return roundBd(BigDecimal.valueOf(bd));
+	}
+
+	private static final BigDecimal roundBd(BigDecimal bd) {
 		if (bd.scale() != ROUND_MC.getPrecision()) {
 			return bd.setScale(ROUND_MC.getPrecision(), ROUND_MC.getRoundingMode());
 		}
 		return bd;
 	}
 
-	public static final String roundStr(BigDecimal bd) {
-		return round(bd).toPlainString();
+	public static final double round(BigDecimal bd) {
+		return roundBd(bd).doubleValue();
+	}
+
+	public static final String roundStr(double bd) {
+		return roundBd(bd).toPlainString();
+	}
+
+	public static final double round(double bd) {
+		return roundBd(bd).doubleValue();
 	}
 
 	public Balance clone() {

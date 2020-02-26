@@ -23,9 +23,9 @@ public class DefaultOrderManager implements OrderManager {
 
 	@Override
 	public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
-		BigDecimal originalPrice = order.getPrice();
+		double originalPrice = order.getPrice();
 
-		double availableQuantity = order.getQuantity().doubleValue();
+		double availableQuantity = order.getQuantity();
 
 		if (book != null) {
 			double spread = book.getSpread(availableQuantity);
@@ -34,9 +34,9 @@ public class DefaultOrderManager implements OrderManager {
 
 			//aims price at central price point of the spread.
 			if (order.getSide() == Order.Side.BUY) {
-				order.setPrice(BigDecimal.valueOf(bid + (spread / 2.0)));
+				order.setPrice(bid + (spread / 2.0));
 			} else {
-				order.setPrice(BigDecimal.valueOf(ask - (spread / 2.0)));
+				order.setPrice(ask - (spread / 2.0));
 			}
 
 			log.debug("{} - spread of {}: Ask {}, Bid {}. Closed at {}. Going to {} at ${}.",

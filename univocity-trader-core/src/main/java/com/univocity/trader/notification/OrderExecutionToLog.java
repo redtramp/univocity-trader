@@ -63,7 +63,7 @@ public class OrderExecutionToLog implements OrderListener {
 			if (order.isLongBuy() || order.isShortSell()) {
 				if (order.isFinalized()) {
 					details += " + " + printFillDetails(o) + ".";
-					if (order.getExecutedQuantity().compareTo(BigDecimal.ZERO) != 0) {
+					if (order.getExecutedQuantity() != 0) {
 						if (order.isLongBuy()) {
 							details += " Worth $" + o.price + " " + o.fundSymbol + " (free $" + o.freeBalance + " " + o.fundSymbol;
 							if (!o.fundSymbol.equals(o.referenceCurrency)) {

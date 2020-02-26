@@ -390,7 +390,7 @@ public class Trader {
 	private boolean sellAssets(Trade trade, Strategy strategy, String reason) {
 		double quantity;
 		if (trade != null) {
-			quantity = trade.quantityInPosition().doubleValue();
+			quantity = trade.quantityInPosition();
 			if (quantity > tradingManager.getAssets() || quantity == 0.0 && trade.isPlaceholder) {
 				quantity = tradingManager.getAssets();
 			}
@@ -408,14 +408,14 @@ public class Trader {
 	}
 
 	private boolean closeShort(Trade trade, Strategy strategy, String exitReason) {
-		BigDecimal reserveFunds = tradingManager.getBalance(fundSymbol()).getMarginReserve(assetSymbol());
-		BigDecimal shortToCover = tradingManager.getBalance(assetSymbol()).getShorted();
-		if (shortToCover.compareTo(BigDecimal.ZERO) > 0) {
-			if (shortToCover.doubleValue() * trade.lastClosingPrice() > reserveFunds.doubleValue()) {
+		double reserveFunds = tradingManager.getBalance(fundSymbol()).getMarginReserve(assetSymbol());
+		double shortToCover = tradingManager.getBalance(assetSymbol()).getShorted();
+		if (shortToCover > 0) {
+			if (shortToCover * trade.lastClosingPrice() > reserveFunds) {
 				log.warn("Not enough funds in margin reserve to cover short of {} {} @ {} {} per unit", assetSymbol(), shortToCover, reserveFunds, fundSymbol());
 			}
 
-			Order order = tradingManager.buy(shortToCover.doubleValue(), SHORT);
+			Order order = tradingManager.buy(shortToCover, SHORT);
 			if (order != null) {
 				processOrder(trade, order, strategy, exitReason);
 				return true;

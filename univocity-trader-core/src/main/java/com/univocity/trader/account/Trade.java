@@ -235,11 +235,11 @@ public class Trade implements Comparable<Trade> {
 	 *
 	 * @return the change percentage, formatted as {@code #,##0.00%}
 	 */
-	public String formattedPriceChangePct(BigDecimal paid) {
+	public String formattedPriceChangePct(double paid) {
 		if (isLong()) {
-			return formattedLongPriceChangePct(paid.doubleValue());
+			return formattedLongPriceChangePct(paid);
 		} else {
-			return formattedShortPriceChangePct(paid.doubleValue());
+			return formattedShortPriceChangePct(paid);
 		}
 	}
 
@@ -312,9 +312,9 @@ public class Trade implements Comparable<Trade> {
 		totalSpent = 0.0;
 		totalUnits = 0.0;
 		for (Order order : orders) {
-			double fees = order.getFeesPaid().doubleValue();
-			totalSpent += order.getTotalTraded().doubleValue() + (order.isBuy() ? fees : -fees);
-			totalUnits += order.getExecutedQuantity().doubleValue();
+			double fees = order.getFeesPaid();
+			totalSpent += order.getTotalTraded() + (order.isBuy() ? fees : -fees);
+			totalUnits += order.getExecutedQuantity();
 		}
 		if (totalUnits == 0.0) {
 			averagePrice = 0.0;
@@ -410,7 +410,7 @@ public class Trade implements Comparable<Trade> {
 		if (isPlaceholder) {
 			return;
 		}
-		if (order.getExecutedQuantity().compareTo(BigDecimal.ZERO) == 0) { // nothing filled, cancelled
+		if (order.getExecutedQuantity() == 0) { // nothing filled, cancelled
 			position.remove(order.getOrderId());
 			return;
 		}
@@ -443,13 +443,13 @@ public class Trade implements Comparable<Trade> {
 				pastOrders.putAll(exitOrders);
 				exitOrders.clear();
 			} else {
-				double totalSold = order.getTotalTraded().doubleValue();
-				double sellPrice = order.getAveragePrice().doubleValue();
+				double totalSold = order.getTotalTraded();
+				double sellPrice = order.getAveragePrice();
 
 				updateAveragePrice(position.values());
 
 				actualProfitLossPct = positivePriceChangePct(averagePrice, sellPrice);
-				actualProfitLoss = totalSold - (order.getExecutedQuantity().doubleValue() * averagePrice);
+				actualProfitLoss = totalSold - (order.getExecutedQuantity() * averagePrice);
 			}
 
 			if (isShort()) {
@@ -459,17 +459,17 @@ public class Trade implements Comparable<Trade> {
 		}
 	}
 
-	private BigDecimal removeCancelledAndSumQuantities(Map<String, Order> orders) {
-		BigDecimal total = BigDecimal.ZERO;
+	private double removeCancelledAndSumQuantities(Map<String, Order> orders) {
+		double total = 0;
 
 		if (!orders.isEmpty()) {
 			var it = orders.entrySet().iterator();
 			while (it.hasNext()) {
 				Order order = it.next().getValue();
-				if (order.isCancelled() && order.getExecutedQuantity().compareTo(BigDecimal.ZERO) == 0) {
+				if (order.isCancelled() && order.getExecutedQuantity() == 0) {
 					it.remove();
 				} else {
-					total = total.add(order.getExecutedQuantity());
+					total = total + order.getExecutedQuantity();
 				}
 			}
 		}
@@ -500,11 +500,11 @@ public class Trade implements Comparable<Trade> {
 		}
 
 		synchronized (this) {
-			double qtyInPosition = removeCancelledAndSumQuantities(position).doubleValue();
+			double qtyInPosition = removeCancelledAndSumQuantities(position);
 			if (qtyInPosition == 0.0) {
 				return false;
 			}
-			double qtyInExit = removeCancelledAndSumQuantities(exitOrders).doubleValue();
+			double qtyInExit = removeCancelledAndSumQuantities(exitOrders);
 
 			double exitPct = qtyInExit * 100.0 / qtyInPosition;
 
@@ -536,7 +536,7 @@ public class Trade implements Comparable<Trade> {
 	}
 
 	public double estimateProfitLossPercentage(Order order) {
-		return priceChangePct() - 100.0 * ((trader.tradingFees().feesOnOrder(order)) / order.getTotalOrderAmount().doubleValue());
+		return priceChangePct() - 100.0 * ((trader.tradingFees().feesOnOrder(order)) / order.getTotalOrderAmount());
 	}
 
 	public boolean tryingToExit() {
@@ -692,7 +692,7 @@ public class Trade implements Comparable<Trade> {
 
 	public double quantity() {
 		if (finalizedQuantity < 0) {
-			return removeCancelledAndSumQuantities(position).doubleValue();
+			return removeCancelledAndSumQuantities(position);
 		} else {
 			return finalizedQuantity;
 		}
@@ -712,14 +712,13 @@ public class Trade implements Comparable<Trade> {
 		return position.toString() + exitOrders.toString();
 	}
 
-	public BigDecimal quantityInPosition() {
-		BigDecimal pos = removeCancelledAndSumQuantities(position);
-		BigDecimal exit = removeCancelledAndSumQuantities(exitOrders);
-		BigDecimal out = pos.subtract(exit);
-		if (out.compareTo(BigDecimal.ZERO) < 0) {
+	public double quantityInPosition() {
+		double pos = removeCancelledAndSumQuantities(position);
+		double exit = removeCancelledAndSumQuantities(exitOrders);
+		if (pos - exit < 0) {
 			throw new IllegalStateException("Illegal quantity of " + symbol() + " held in " + getSide() + " trade. Position: " + pos + ", Exit: " + exit);
 		}
-		return out;
+		return pos - exit;
 	}
 
 	public void liquidate() {

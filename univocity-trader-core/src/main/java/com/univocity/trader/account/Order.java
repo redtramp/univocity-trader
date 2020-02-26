@@ -2,7 +2,6 @@ package com.univocity.trader.account;
 
 import com.univocity.trader.indicators.base.*;
 
-import java.math.*;
 import java.util.*;
 
 import static com.univocity.trader.account.Balance.*;
@@ -30,15 +29,15 @@ public interface Order {
 
 	String getOrderId();
 
-	BigDecimal getPrice();
+	double getPrice();
 
-	BigDecimal getAveragePrice();
+	double getAveragePrice();
 
-	BigDecimal getQuantity();
+	double getQuantity();
 
-	BigDecimal getExecutedQuantity();
+	double getExecutedQuantity();
 
-	BigDecimal getFeesPaid();
+	double getFeesPaid();
 
 	Order.Side getSide();
 
@@ -48,7 +47,7 @@ public interface Order {
 
 	TriggerCondition getTriggerCondition();
 
-	BigDecimal getTriggerPrice();
+	Double getTriggerPrice();
 
 	boolean isActive();
 
@@ -70,16 +69,16 @@ public interface Order {
 		return getStatus() == Status.CANCELLED;
 	}
 
-	default BigDecimal getRemainingQuantity() {
-		return round(getQuantity().subtract(getExecutedQuantity()));
+	default double getRemainingQuantity() {
+		return round(getQuantity() - getExecutedQuantity());
 	}
 
-	default BigDecimal getTotalTraded() {
-		return round(getExecutedQuantity().multiply(getAveragePrice()));
+	default double getTotalTraded() {
+		return round(getExecutedQuantity() * getAveragePrice());
 	}
 
-	default BigDecimal getTotalOrderAmount() {
-		return round(getQuantity().multiply(getPrice()));
+	default double getTotalOrderAmount() {
+		return round(getQuantity() * getPrice());
 	}
 
 	default boolean isFinalized() {
@@ -177,7 +176,7 @@ public interface Order {
 					.append(getFundsSymbol());
 		}
 
-		if (getStatus() == Status.PARTIALLY_FILLED || isFinalized() && getExecutedQuantity().compareTo(BigDecimal.ZERO) > 0) {
+		if (getStatus() == Status.PARTIALLY_FILLED || isFinalized() && getExecutedQuantity() > 0) {
 
 			description
 					.append(" - filled: ")
@@ -209,7 +208,7 @@ public interface Order {
 	}
 
 	default double getFillPct() {
-		return getExecutedQuantity().divide(getQuantity(), RoundingMode.FLOOR).doubleValue() * 100.0;
+		return getExecutedQuantity() / getQuantity() * 100.0;
 	}
 
 	default String sideDescription() {
@@ -239,7 +238,8 @@ public interface Order {
 		STOP_GAIN("SG");
 
 		public final String shortName;
-		TriggerCondition(String shortName){
+
+		TriggerCondition(String shortName) {
 			this.shortName = shortName;
 		}
 	}

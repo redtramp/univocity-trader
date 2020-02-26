@@ -31,16 +31,16 @@ public class PriceMatchEmulator implements OrderFillEmulator {
 	@Override
 	public void fillOrder(DefaultOrder order, Candle candle) {
 		if (order.getType() == LIMIT) {
-			if ((order.getSide() == BUY && order.getPrice().compareTo(round(BigDecimal.valueOf(candle.low))) >= 0)
-					|| (order.getSide() == SELL && order.getPrice().compareTo(round(BigDecimal.valueOf(candle.high))) <= 0)) {
+			if ((order.getSide() == BUY && order.getPrice() >= round(candle.low))
+					|| (order.getSide() == SELL && order.getPrice()<=round(candle.high))) {
 				order.setStatus(Order.Status.FILLED);
 				order.setExecutedQuantity(order.getQuantity());
 
-				double orderPrice = order.getPrice().doubleValue();
+				double orderPrice = order.getPrice();
 				if (order.isBuy() && candle.high < orderPrice) {
-					order.setAveragePrice(BigDecimal.valueOf(candle.high));
+					order.setAveragePrice(candle.high);
 				} else if (order.isSell() && candle.low > orderPrice) {
-					order.setAveragePrice(BigDecimal.valueOf(candle.low));
+					order.setAveragePrice(candle.low);
 				} else {
 					order.setAveragePrice(order.getPrice());
 				}
@@ -50,9 +50,9 @@ public class PriceMatchEmulator implements OrderFillEmulator {
 			order.setStatus(Order.Status.FILLED);
 			order.setExecutedQuantity(order.getQuantity());
 			if (order.getSide() == BUY) {
-				order.setAveragePrice(BigDecimal.valueOf((candle.open + candle.close + candle.high) / 3.0));
+				order.setAveragePrice((candle.open + candle.close + candle.high) / 3.0);
 			} else if (order.getSide() == SELL) {
-				order.setAveragePrice(BigDecimal.valueOf((candle.open + candle.close + candle.low) / 3.0));
+				order.setAveragePrice((candle.open + candle.close + candle.low) / 3.0);
 			}
 			order.setPrice(order.getAveragePrice());
 			order.setPartialFillDetails(order.getQuantity(), order.getAveragePrice());

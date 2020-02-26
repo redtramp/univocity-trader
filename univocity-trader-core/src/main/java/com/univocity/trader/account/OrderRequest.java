@@ -19,11 +19,11 @@ public class OrderRequest {
 	private long time;
 	private final Order resubmittedFrom;
 
-	private BigDecimal triggerPrice;
+	private Double triggerPrice;
 	private Order.TriggerCondition triggerCondition = NONE;
 
-	private BigDecimal price = BigDecimal.ZERO;
-	private BigDecimal quantity = BigDecimal.ZERO;
+	private double price = 0.0;
+	private double quantity = 0.0;
 	private Order.Type type = Order.Type.LIMIT;
 	private boolean active = true;
 
@@ -59,19 +59,19 @@ public class OrderRequest {
 		return assetsSymbol + fundsSymbol;
 	}
 
-	public BigDecimal getPrice() {
+	public double getPrice() {
 		return price;
 	}
 
-	public void setPrice(BigDecimal price) {
+	public void setPrice(double price) {
 		this.price = round(price);
 	}
 
-	public BigDecimal getQuantity() {
+	public double getQuantity() {
 		return quantity;
 	}
 
-	public void setQuantity(BigDecimal quantity) {
+	public void setQuantity(double quantity) {
 		this.quantity = round(quantity);
 	}
 
@@ -91,8 +91,8 @@ public class OrderRequest {
 		this.type = type;
 	}
 
-	public BigDecimal getTotalOrderAmount() {
-		return round(price.multiply(quantity));
+	public double getTotalOrderAmount() {
+		return round(price * quantity);
 	}
 
 	public long getTime() {
@@ -172,15 +172,15 @@ public class OrderRequest {
 		return this.triggerCondition;
 	}
 
-	public final BigDecimal getTriggerPrice() {
+	public final Double getTriggerPrice() {
 		return this.triggerPrice;
 	}
 
-	public final void setTriggerCondition(Order.TriggerCondition triggerCondition, BigDecimal triggerPrice) {
+	public final void setTriggerCondition(Order.TriggerCondition triggerCondition, Double triggerPrice) {
 		this.triggerCondition = triggerCondition;
 		this.triggerPrice = triggerPrice;
 		this.active = !(triggerCondition != Order.TriggerCondition.NONE && triggerPrice != null);
-		if (this.price.equals(BigDecimal.ZERO)) {
+		if (this.price == 0.0 && triggerPrice != null) {
 			this.price = triggerPrice;
 		}
 	}
@@ -203,7 +203,7 @@ public class OrderRequest {
 
 		this.attachedRequests.add(attachment);
 		attachment.setQuantity(this.quantity);
-		attachment.setPrice(this.price.multiply(BigDecimal.valueOf(1.0 + (change / 100.0))));
+		attachment.setPrice(this.price * (1.0 + (change / 100.0)));
 		attachment.setType(type);
 
 		if (change < 0.0) {

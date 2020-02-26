@@ -33,7 +33,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		Trader trader = account.getTraderOf("ADAUSDT");
 
 		double usdBalance = account.getAmount("USDT");
-		double reservedBalance = account.getMarginReserve("USDT", "ADA").doubleValue();
+		double reservedBalance = account.getMarginReserve("USDT", "ADA");
 		tradeOnPrice(trader, 1, 0.9, SELL);
 		Trade trade = trader.trades().iterator().next();
 		double quantity1 = checkTradeAfterShortSell(usdBalance, reservedBalance, trade, MAX, 0.0, 0.9, 0.9, 0.9);
@@ -42,7 +42,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		checkShortTradeStats(trade, 1.0, 1.0, 0.9);
 
 		usdBalance = account.getAmount("USDT");
-		reservedBalance = account.getMarginReserve("USDT", "ADA").doubleValue();
+		reservedBalance = account.getMarginReserve("USDT", "ADA");
 		tradeOnPrice(trader, 10, 1.2, SELL);
 		double quantity2 = checkTradeAfterShortSell(usdBalance, reservedBalance, trade, MAX, quantity1, 1.2, 1.2, 0.9);
 
@@ -51,13 +51,13 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertEquals(averagePrice, trade.averagePrice(), DELTA);
 
 		usdBalance = account.getAmount("USDT");
-		reservedBalance = account.getMarginReserve("USDT", "ADA").doubleValue();
+		reservedBalance = account.getMarginReserve("USDT", "ADA");
 
 		//CANCEL
 		tradeOnPrice(trader, 11, 1.1, SELL, true);
 		averagePrice = (subtractFees(quantity1 * 0.9) + subtractFees(quantity2 * 1.2)) / (quantity1 + quantity2);
 		assertEquals(averagePrice, trade.averagePrice(), DELTA);
-		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA"), DELTA);
 		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
 
 
@@ -89,7 +89,7 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		//FIRST SHORT, COMMITS ALL ACCOUNT BALANCE
 		double usdBalance = account.getAmount("USDT");
-		double reservedBalance = account.getMarginReserve("USDT", "ADA").doubleValue();
+		double reservedBalance = account.getMarginReserve("USDT", "ADA");
 		tradeOnPrice(trader, 1, 0.9, SELL);
 		Trade trade = trader.trades().iterator().next();
 		double quantity1 = checkTradeAfterShortSell(usdBalance, reservedBalance, trade, initialBalance, 0.0, 0.9, 0.9, 0.9);
@@ -104,7 +104,7 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		//NO BALANCE AVAILABLE TO SHORT
 		usdBalance = account.getAmount("USDT");
-		reservedBalance = account.getMarginReserve("USDT", "ADA").doubleValue();
+		reservedBalance = account.getMarginReserve("USDT", "ADA");
 		tradeOnPrice(trader, 10, 1.2, SELL);
 		checkShortTradeStats(trade, 1.2, 1.2, 0.9);
 		double updatedAmountShorted = quantity1 * 1.2;
@@ -114,7 +114,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		double averagePrice = subtractFees((quantity1 * 0.9)) / (quantity1);
 		assertEquals(averagePrice, trade.averagePrice(), DELTA);
 		assertEquals(usdBalance, account.getAmount("USDT"), DELTA);
-		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(reservedBalance, account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		//COVER
 		tradeOnPrice(trader, 20, 1.0, BUY);
@@ -170,13 +170,13 @@ public class ShortTradingTests extends OrderFillChecker {
 		usdBalance = account.getAmount("USDT");
 		checkBalancesAfterShort(initialBalance, usdBalance, 40, 1.0);
 		double assetsAt1_0 = account.getShortedAmount("ADA");
-		double marginAt_10 = account.getMarginReserve("USDT", "ADA").doubleValue();
+		double marginAt_10 = account.getMarginReserve("USDT", "ADA");
 		assertEquals(assetsAt1_0 * 1.5, marginAt_10, DELTA);
 
 
 		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.SELL, SHORT, 2, null);
-		or.setQuantity(BigDecimal.valueOf(quantity1));
-		or.setTriggerCondition(Order.TriggerCondition.STOP_LOSS, new BigDecimal("0.9"));
+		or.setQuantity(quantity1);
+		or.setTriggerCondition(Order.TriggerCondition.STOP_LOSS, 0.9);
 		Order o = account.executeOrder(or);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 1.5));
@@ -196,15 +196,15 @@ public class ShortTradingTests extends OrderFillChecker {
 		double assetsAt0_90 = account.getShortedAmount("ADA") - assetsAt1_0;
 		assertEquals(40, assetsAt0_90, DELTA);
 		//margin requirement updated based on filled price ($0.92 here). Funds are locked according to margin reserve %.
-		double marginAt0_90 = account.getMarginReserve("USDT", "ADA").doubleValue() - marginAt_10;
+		double marginAt0_90 = account.getMarginReserve("USDT", "ADA") - marginAt_10;
 		assertEquals(assetsAt0_90 * 0.92 * 1.5, marginAt0_90, DELTA);
 
 		assertEquals(assetsAt1_0, assetsAt0_90, DELTA);
 
 		double amountInMargin = (assetsAt1_0 * 1.0 * 1.5) + (assetsAt0_90 * 0.92 * 1.5);
-		assertEquals(amountInMargin, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
+		assertEquals(amountInMargin, account.getMarginReserve("USDT", "ADA"), DELTA);
 
-		assertEquals(0.0, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
 
 		double feesPaid = feesOn(assetsAt1_0 * 1.0) + feesOn(assetsAt0_90 * 0.92);
 		double fundsInMargin = (assetsAt1_0 * 1.0 * 0.5) + (assetsAt0_90 * 0.92 * 0.5);
@@ -236,8 +236,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		checkBalancesAfterShort(initialBalance, usdBalance, 40.0, shortUnitPrice);
 
 		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.BUY, SHORT, 2, null);
-		or.setQuantity(BigDecimal.valueOf(quantity1));
-		or.setTriggerCondition(Order.TriggerCondition.STOP_GAIN, new BigDecimal("1.2"));
+		or.setQuantity(quantity1);
+		or.setTriggerCondition(Order.TriggerCondition.STOP_GAIN, 1.2);
 		Order o = account.executeOrder(or);
 
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(3, 0.8999));
@@ -260,7 +260,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		checkBalancesAfterBuyBack(previousUsdBalance, usdBalance, 40.0, shortUnitPrice, 0.8);
 
 		assertEquals(0.0, account.getShortedAmount("ADA"));
-		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue());
+		assertEquals(0.0, account.getMarginReserve("USDT", "ADA"));
 	}
 
 	@Test
@@ -293,7 +293,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		Trader trader = account.getTraderOf("ADAUSDT");
 
 		double usdBalance = account.getAmount("USDT");
-		double marginReserve = account.getMarginReserve("USDT", "ADA").doubleValue();
+		double marginReserve = account.getMarginReserve("USDT", "ADA");
 		tradeOnPrice(trader, ++time, unitPrice, SELL);
 		final Trade trade = trader.trades().iterator().next();
 
@@ -312,7 +312,7 @@ public class ShortTradingTests extends OrderFillChecker {
 			assertEquals(NEW, o.getStatus());
 			assertEquals(parent.getOrderId(), o.getParentOrderId());
 			assertFalse(o.isActive());
-			if (o.getTriggerPrice().doubleValue() > unitPrice) {
+			if (o.getTriggerPrice() > unitPrice) {
 				profitOrder = o;
 			} else {
 				lossOrder = o;
@@ -330,9 +330,9 @@ public class ShortTradingTests extends OrderFillChecker {
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, newUnitPrice)); //this finalizes all orders
 		trader.tradingManager.updateOpenOrders("ADAUSDT", newTick(++time, newUnitPrice)); //so this should not do anything
 
-		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
-		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
-		assertEquals(0.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 
 		double currentBalance = account.getAmount("USDT");
 		checkBalancesAfterBuyBack(usdBalance, currentBalance, 40.0, unitPrice, newUnitPrice);
@@ -357,8 +357,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		long time = 1;
 
 		Order order = submitOrder(account, Order.Side.SELL, SHORT, time++, 4.0);
-		assertEquals(50.04489501, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
-		assertEquals(100.0, account.getBalance("USDT").getLocked().doubleValue() + account.getBalance("USDT").getFree().doubleValue());
+		assertEquals(50.04489501, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(100.0, account.getBalance("USDT").getLocked() + account.getBalance("USDT").getFree());
 
 		cancelOrder(account, order, time++);
 		assertNoChangeInFunds(account, "USDT", "ADA", 100.0);
@@ -366,29 +366,29 @@ public class ShortTradingTests extends OrderFillChecker {
 		order = submitOrder(account, Order.Side.SELL, SHORT, time++, 4.0);
 		executeOrder(account, order, time++); //actually execute order
 
-		assertEquals(0.00, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
-		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
-		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
-		assertEquals(0.00, account.getBalance("ADA").getFree().doubleValue(), DELTA);
-		assertEquals(3.9956004, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+		assertEquals(0.00, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(49.95510499, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(0.00, account.getBalance("ADA").getFree(), DELTA);
+		assertEquals(3.9956004, account.getBalance("ADA").getShorted(), DELTA);
 
 		order = submitOrder(account, Order.Side.BUY, SHORT, time++, 4.0);
 		cancelOrder(account, order, time++);
 
-		assertEquals(0.00, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
-		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
-		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
-		assertEquals(0.00, account.getBalance("ADA").getFree().doubleValue(), DELTA);
-		assertEquals(3.9956004, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+		assertEquals(0.00, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(49.95510499, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(0.00, account.getBalance("ADA").getFree(), DELTA);
+		assertEquals(3.9956004, account.getBalance("ADA").getShorted(), DELTA);
 
 		order = submitOrder(account, Order.Side.BUY, SHORT, time++, 6.0); //cover short of 4 and buy 2 more
 		executeOrder(account, order, time);
 
-		assertEquals(0.00, account.getBalance("USDT").getLocked().doubleValue(), DELTA);
-		assertEquals(49.64011999, account.getBalance("USDT").getFree().doubleValue(), DELTA);
-		assertEquals(0.0, account.getMarginReserve("USDT", "ADA").doubleValue(), DELTA);
-		assertEquals(2.0043996, account.getBalance("ADA").getFree().doubleValue(), DELTA);//bought some ADA here because BUY order buys 4 whole units and the short was for 3.9956004 units
-		assertEquals(0.0, account.getBalance("ADA").getShorted().doubleValue(), DELTA);
+		assertEquals(0.00, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(49.64011999, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(0.0, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(2.0043996, account.getBalance("ADA").getFree(), DELTA);//bought some ADA here because BUY order buys 4 whole units and the short was for 3.9956004 units
+		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 	}
 
 }

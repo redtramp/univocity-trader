@@ -125,7 +125,7 @@ public class OrderExecutionLine {
 			orderFillPercentage = order.getFormattedFillPct();
 
 			if (orderType == Order.Type.MARKET && fillPct == 0.0) {
-				orderAmount = amountDetails.priceToString(order.getQuantity().doubleValue() * trader.lastClosingPrice());
+				orderAmount = amountDetails.priceToString(order.getQuantity() * trader.lastClosingPrice());
 			} else {
 				orderAmount = amountDetails.priceToString(order.getTotalOrderAmount());
 			}

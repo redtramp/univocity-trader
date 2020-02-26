@@ -181,7 +181,7 @@ public class TradingManager {
 	}
 
 	public double getTotalAssets() {
-		return tradingAccount.getBalance(assetSymbol).getTotal().doubleValue();
+		return tradingAccount.getBalance(assetSymbol).getTotal();
 	}
 
 	public double getCash() {

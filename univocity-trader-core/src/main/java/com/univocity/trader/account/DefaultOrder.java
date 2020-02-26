@@ -12,14 +12,14 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 
 	private final long id = orderIds.incrementAndGet();
 	private String orderId = String.valueOf(id);
-	private BigDecimal executedQuantity = BigDecimal.ZERO;
+	private double executedQuantity = 0.0;
 	private Order.Status status;
-	private BigDecimal feesPaid = BigDecimal.ZERO;
-	private BigDecimal averagePrice = BigDecimal.ZERO;
+	private double feesPaid = 0.0;
+	private double averagePrice = 0.0;
 	private List<Order> attachments;
 	private Order parent;
-	private BigDecimal partialFillPrice = BigDecimal.ZERO;
-	private BigDecimal partialFillQuantity = BigDecimal.ZERO;
+	private double partialFillPrice = 0.0;
+	private double partialFillQuantity = 0.0;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -47,28 +47,28 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	@Override
-	public BigDecimal getExecutedQuantity() {
+	public double getExecutedQuantity() {
 		return executedQuantity;
 	}
 
-	public BigDecimal getTotalOrderAmountAtAveragePrice() {
-		if (averagePrice.compareTo(BigDecimal.ZERO) == 0) {
-			return round(getPrice().multiply(getQuantity()));
+	public double getTotalOrderAmountAtAveragePrice() {
+		if (averagePrice == 0) {
+			return round(getPrice() * getQuantity());
 		}
-		return round(averagePrice.multiply(getQuantity()));
+		return round(averagePrice * getQuantity());
 	}
 
-	public void setExecutedQuantity(BigDecimal executedQuantity) {
+	public void setExecutedQuantity(double executedQuantity) {
 		this.executedQuantity = round(executedQuantity);
 	}
 
 	@Override
-	public void setPrice(BigDecimal price) {
+	public void setPrice(double price) {
 		super.setPrice(round(price));
 	}
 
 	@Override
-	public void setQuantity(BigDecimal quantity) {
+	public void setQuantity(double quantity) {
 		super.setQuantity(round(quantity));
 	}
 
@@ -93,11 +93,11 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	@Override
-	public BigDecimal getFeesPaid() {
+	public double getFeesPaid() {
 		return feesPaid;
 	}
 
-	public void setFeesPaid(BigDecimal feesPaid) {
+	public void setFeesPaid(double feesPaid) {
 		this.feesPaid = round(feesPaid);
 	}
 
@@ -106,12 +106,12 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return print(0);
 	}
 
-	public void setAveragePrice(BigDecimal averagePrice) {
+	public void setAveragePrice(double averagePrice) {
 		this.averagePrice = round(averagePrice);
 	}
 
 	@Override
-	public final BigDecimal getAveragePrice() {
+	public final double getAveragePrice() {
 		return averagePrice;
 	}
 
@@ -127,11 +127,11 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 		return parent == null ? "" : parent.getOrderId();
 	}
 
-	public BigDecimal getQuantity() { //TODO: check this implementation in live trading.
-		BigDecimal out = super.getQuantity();
+	public double getQuantity() { //TODO: check this implementation in live trading.
+		double out = super.getQuantity();
 		if (parent != null && parent.isFinalized()) {
-			BigDecimal p = parent.getExecutedQuantity();
-			if (out.compareTo(p) > 0 || p.compareTo(BigDecimal.ZERO) == 0) {
+			double p = parent.getExecutedQuantity();
+			if (out > p || p == 0) {
 				return p;
 			}
 		}
@@ -139,23 +139,23 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	public boolean hasPartialFillDetails() {
-		return partialFillQuantity != null && partialFillQuantity.compareTo(BigDecimal.ZERO) > 0;
+		return partialFillQuantity != 0.0 && partialFillQuantity > 0;
 	}
 
 	public void clearPartialFillDetails() {
-		partialFillQuantity = BigDecimal.ZERO;
-		partialFillPrice = BigDecimal.ZERO;
+		partialFillQuantity = 0.0;
+		partialFillPrice = 0.0;
 	}
 
-	public BigDecimal getPartialFillTotalPrice() {
-		return partialFillQuantity.multiply(partialFillPrice);
+	public double getPartialFillTotalPrice() {
+		return partialFillQuantity * partialFillPrice;
 	}
 
-	public BigDecimal getPartialFillQuantity() {
+	public double getPartialFillQuantity() {
 		return partialFillQuantity;
 	}
 
-	public void setPartialFillDetails(BigDecimal filledQuantity, BigDecimal fillPrice) {
+	public void setPartialFillDetails(double filledQuantity, double fillPrice) {
 		this.partialFillPrice = fillPrice;
 		this.partialFillQuantity = filledQuantity;
 	}

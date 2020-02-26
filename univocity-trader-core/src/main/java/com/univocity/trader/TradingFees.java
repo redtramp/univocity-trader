@@ -29,7 +29,7 @@ public interface TradingFees {
 	 * @return the total fee amount for the given order;
 	 */
 	default double feesOnOrder(Order order) {
-		final double amount = order.getTotalOrderAmount().doubleValue();
+		final double amount = order.getTotalOrderAmount();
 		return feesOnAmount(amount, order.getType(), order.getSide());
 	}
 
@@ -41,7 +41,7 @@ public interface TradingFees {
 	 * @return the total fee amount for the given order;
 	 */
 	default double feesOnOrder(OrderRequest order) {
-		final double amount = order.getTotalOrderAmount().doubleValue();
+		final double amount = order.getTotalOrderAmount();
 		return feesOnAmount(amount, order.getType(), order.getSide());
 	}
 
@@ -54,7 +54,7 @@ public interface TradingFees {
 	 * @return the total fee amount for the value traded through this order.
 	 */
 	default double feesOnTradedAmount(Order order) {
-		final double amount = order.getTotalTraded().doubleValue();
+		final double amount = order.getTotalTraded();
 		if (amount == 0.0) {
 			return 0.0;
 		}
@@ -69,7 +69,7 @@ public interface TradingFees {
 	 * @return the fee amount for the current partial fill value traded through this order.
 	 */
 	default double feesOnPartialFill(DefaultOrder order) {
-		final double amount = order.getPartialFillTotalPrice().doubleValue();
+		final double amount = order.getPartialFillTotalPrice();
 		if (amount == 0.0) {
 			return 0.0;
 		}
@@ -99,7 +99,7 @@ public interface TradingFees {
 	 * @return the total fee amount for the given order;
 	 */
 	default double feesOnTotalOrderAmount(Order order) {
-		double amount = order.getTotalOrderAmount().doubleValue();
+		double amount = order.getTotalOrderAmount();
 		return feesOnAmount(amount, order.getType(), order.getSide());
 	}
 

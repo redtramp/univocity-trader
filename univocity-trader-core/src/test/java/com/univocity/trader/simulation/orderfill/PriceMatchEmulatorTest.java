@@ -23,7 +23,7 @@ public class PriceMatchEmulatorTest {
 
 		e.fillOrder(sell, new Candle(1, 1, 1.1, 1.1, 1.1, 1.1, 1.0));
 		assertEquals(FILLED, sell.getStatus());
-		assertEquals(1.1, sell.getAveragePrice().doubleValue(), 0.000001);
+		assertEquals(1.1, sell.getAveragePrice(), 0.000001);
 	}
 
 	@Test
@@ -35,7 +35,7 @@ public class PriceMatchEmulatorTest {
 
 		e.fillOrder(buy, new Candle(1, 1, 0.9, 0.9, 0.9, 0.9, 1.0));
 		assertEquals(FILLED, buy.getStatus());
-		assertEquals(0.9, buy.getAveragePrice().doubleValue(), 0.000001);
+		assertEquals(0.9, buy.getAveragePrice(), 0.000001);
 	}
 
 
@@ -45,7 +45,7 @@ public class PriceMatchEmulatorTest {
 
 		e.fillOrder(sell, new Candle(1, 1, 0.9, 0.9, 0.9, 0.9, 1.0));
 		assertEquals(FILLED, sell.getStatus());
-		assertEquals(0.9, sell.getAveragePrice().doubleValue(), 0.000001);
+		assertEquals(0.9, sell.getAveragePrice(), 0.000001);
 	}
 
 	@Test
@@ -54,6 +54,6 @@ public class PriceMatchEmulatorTest {
 
 		e.fillOrder(buy, new Candle(1, 1, 1.1, 1.1, 1.1, 1.1, 1.0));
 		assertEquals(FILLED, buy.getStatus());
-		assertEquals(1.1, buy.getAveragePrice().doubleValue(), 0.000001);
+		assertEquals(1.1, buy.getAveragePrice(), 0.000001);
 	}
 }

@@ -20,8 +20,8 @@ public class ImmediateFillEmulator implements OrderFillEmulator {
 			order.setStatus(Order.Status.FILLED);
 			order.setExecutedQuantity(order.getQuantity());
 			if (order.isMarket()) {
-				order.setPrice(BigDecimal.valueOf(candle.close));
-				order.setAveragePrice(BigDecimal.valueOf(candle.close));
+				order.setPrice(candle.close);
+				order.setAveragePrice(candle.close);
 			} else {
 				order.setAveragePrice(order.getPrice());
 			}
