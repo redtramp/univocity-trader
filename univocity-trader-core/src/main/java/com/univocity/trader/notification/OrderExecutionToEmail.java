@@ -163,7 +163,7 @@ public class OrderExecutionToEmail implements OrderListener {
 
 		Balance instrument = balances.getOrDefault(next.getAssetSymbol(), ZERO);
 
-		double assets = instrument.getFreeAmount();
+		double assets = instrument.getFree();
 		double locked = instrument.getLocked();
 
 		if (assets != 0 || locked != 0) {

@@ -15,8 +15,6 @@ public class Balance implements Cloneable {
 	private double locked = 0.0;
 	private double shorted = 0.0;
 	private Map<String, Double> marginReserves = new ConcurrentHashMap<>();
-	private double freeAmount = -1.0;
-	private double shortedAmount = -1.0;
 
 	public static final MathContext ROUND_MC = new MathContext(8, RoundingMode.HALF_EVEN);
 
@@ -37,16 +35,8 @@ public class Balance implements Cloneable {
 		return free;
 	}
 
-	public double getFreeAmount() {
-		if (freeAmount < 0.0) {
-			freeAmount = free;
-		}
-		return freeAmount;
-	}
-
 	public void setFree(double free) {
 		this.free = ensurePositive(free, "free balance");
-		this.freeAmount = -1.0;
 	}
 
 	public double getLocked() {
@@ -57,20 +47,12 @@ public class Balance implements Cloneable {
 		this.locked = ensurePositive(locked, "locked balance");
 	}
 
-	public double getShortedAmount() {
-		if (shortedAmount < 0.0) {
-			shortedAmount = shorted;
-		}
-		return shortedAmount;
-	}
-
 	public double getShorted() {
 		return shorted;
 	}
 
 	public void setShorted(double shorted) {
 		this.shorted = ensurePositive(shorted, "shorted balance");
-		this.shortedAmount = -1.0;
 	}
 
 	public double getMarginReserve(String assetSymbol) {

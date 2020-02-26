@@ -103,7 +103,7 @@ public class OrderExecutionLine {
 			assetSymbol = trader.assetSymbol();
 
 			Balance balance = trader.balanceOf(fundSymbol);
-			shortedQuantity = priceDetails.quantityToString(trader.balance(assetSymbol).getShortedAmount());
+			shortedQuantity = priceDetails.quantityToString(trader.balance(assetSymbol).getShorted());
 
 			SymbolPriceDetails amountDetails = fundSymbol.equals(referenceCurrency) ? refPriceDetails : priceDetails;
 

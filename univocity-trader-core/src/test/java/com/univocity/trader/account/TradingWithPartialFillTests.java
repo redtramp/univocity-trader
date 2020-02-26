@@ -120,7 +120,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		assertEquals(0.0, usdt.getLocked(), DELTA);
 		//again using less stringent DELTA here as calculation is correct but assertion fails due to rounding error
 		assertEquals(100.0 - addFees(first) - addFees(second), usdt.getFree(), 0.000001);
-		final double balance = usdt.getFreeAmount();
+		final double balance = usdt.getFree();
 
 		tradeOnPrice(trader, 1, 1.0, SELL);
 		Order order = trade.exitOrders().iterator().next();
@@ -180,7 +180,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		assertEquals(0.0, usdt.getLocked(), DELTA);
 		//again using less stringent DELTA here as calculation is correct but assertion fails due to rounding error
 		assertEquals(100.0 - addFees(first) - addFees(second), usdt.getFree(), 0.000001);
-		final double balance = usdt.getFreeAmount();
+		final double balance = usdt.getFree();
 
 		tradeOnPrice(trader, 1, 1.0, SELL);
 		Order order = trade.exitOrders().iterator().next();
@@ -246,8 +246,8 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		assertEquals(0.0, usdt.getLocked(), DELTA);
 
 		double takenFromFunds = (33 / 2.0);
-		assertEquals(initialBalance - takenFromFunds - feesOn(33), usdt.getFreeAmount(), DELTA);
-		assertEquals(33, ada.getShortedAmount(), DELTA);
+		assertEquals(initialBalance - takenFromFunds - feesOn(33), usdt.getFree(), DELTA);
+		assertEquals(33, ada.getShorted(), DELTA);
 		assertEquals(33 * 1.5, usdt.getMarginReserve("ADA"), DELTA);
 	}
 

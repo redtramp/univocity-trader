@@ -93,7 +93,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 	 * @return the amount held for the given symbol.
 	 */
 	public double getAmount(String symbol) {
-		return balances.getOrDefault(symbol, Balance.ZERO).getFreeAmount();
+		return balances.getOrDefault(symbol, Balance.ZERO).getFree();
 	}
 
 	/**
@@ -108,7 +108,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 	}
 
 	public double getShortedAmount(String symbol) {
-		return balances.getOrDefault(symbol, Balance.ZERO).getShortedAmount();
+		return balances.getOrDefault(symbol, Balance.ZERO).getShorted();
 	}
 
 	public double getPreciseShortedAmount(String symbol) {
@@ -371,7 +371,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 			for (String shorted : b.getShortedAssetSymbols()) {
 				double reserve = b.getMarginReserve(shorted);
 				double marginWithoutReserve = b.getMarginReserve(shorted) / marginReserveFactorPct;
-				double shortedQuantity = balances.get(shorted).getShortedAmount();
+				double shortedQuantity = balances.get(shorted).getShorted();
 				double originalShortedPrice = marginWithoutReserve / shortedQuantity;
 				double totalInvestmentOnShort = shortedQuantity * originalShortedPrice;
 				double totalAtCurrentPrice = multiplyWithLatestPrice(shortedQuantity, shorted, symbol, allPrices);

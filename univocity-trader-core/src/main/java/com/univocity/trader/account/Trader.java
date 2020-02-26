@@ -366,7 +366,7 @@ public class Trader {
 			double amountToSpend = prepareTrade(tradeSide, candle, strategy);
 			order = tradingManager.buy(amountToSpend / candle.close, LONG);
 		} else if (tradeSide == SHORT) {
-			double shortedQuantity = balance().getShortedAmount();
+			double shortedQuantity = balance().getShorted();
 			order = tradingManager.buy(shortedQuantity, SHORT);
 		}
 		if (order != null) {

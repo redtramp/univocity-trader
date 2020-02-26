@@ -203,9 +203,9 @@ public class OrderFillChecker {
 		AccountManager account = trader.tradingManager.getAccount();
 		assertEquals(0.0, account.getAmount("ADA"), DELTA);
 
-		assertEquals(0.0, account.getBalance("ADA").getFreeAmount(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getFree(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
-		assertEquals(0.0, account.getBalance("ADA").getShortedAmount(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 		assertEquals(0.0, account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		double pricePaid = quantity * unitPrice;

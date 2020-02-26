@@ -208,7 +208,7 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		double feesPaid = feesOn(assetsAt1_0 * 1.0) + feesOn(assetsAt0_90 * 0.92);
 		double fundsInMargin = (assetsAt1_0 * 1.0 * 0.5) + (assetsAt0_90 * 0.92 * 0.5);
-		assertEquals(initialBalance - fundsInMargin - feesPaid, account.getBalance("USDT").getFreeAmount(), DELTA);
+		assertEquals(initialBalance - fundsInMargin - feesPaid, account.getBalance("USDT").getFree(), DELTA);
 	}
 
 	@Test
