@@ -62,6 +62,21 @@ public interface TradingFees {
 	}
 
 	/**
+	 * Return the trading fee amount applied to the partial fill amount spent on the given {@link Order}.
+	 *
+	 * @param order the order whose fees will be calculated
+	 *
+	 * @return the fee amount for the current partial fill value traded through this order.
+	 */
+	default double feesOnPartialFill(DefaultOrder order) {
+		final double amount = order.getPartialFillTotalPrice().doubleValue();
+		if (amount == 0.0) {
+			return 0.0;
+		}
+		return feesOnAmount(amount, order.getType(), order.getSide());
+	}
+
+	/**
 	 * Return the trading fee amount applied to a given total order amount.
 	 *
 	 * @param amount    the original amount before fees

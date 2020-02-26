@@ -182,6 +182,7 @@ public class SimulatedClientAccount implements ClientAccount {
 
 	@Override
 	public final synchronized boolean updateOpenOrders(String symbol, Candle candle) {
+		//System.out.println("-------");
 		Set<Order> s = orders.get(symbol);
 		if (s == null || s.isEmpty()) {
 			return false;
@@ -211,10 +212,10 @@ public class SimulatedClientAccount implements ClientAccount {
 				}
 			}
 
+			order.setFeesPaid(order.getFeesPaid().add(BigDecimal.valueOf(getTradingFees().feesOnPartialFill(order))));
+
 			if (order.isFinalized()) {
 				it.remove();
-				order.setFeesPaid(BigDecimal.valueOf(getTradingFees().feesOnTradedAmount(order)));
-
 				if (order.getParent() != null) { //order is child of a bracket order
 					updateBalances(order, candle);
 					for (Order attached : order.getParent().getAttachments()) { //cancel all open orders
@@ -311,18 +312,6 @@ public class SimulatedClientAccount implements ClientAccount {
 		return BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
 	}
 
-	private void updateFees(Order order) {
-		if (order.isFinalized()) {
-			if (order.isLongBuy() || order.isShortSell()) {
-				BigDecimal maxFees = BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
-				account.subtractFromLockedOrFreeBalance(order.getFundsSymbol(), maxFees);
-				account.addToFreeBalance(order.getFundsSymbol(), maxFees.subtract(order.getFeesPaid()));
-			} else if (order.isLongSell() || order.isShortCover()) {
-				account.subtractFromFreeBalance(order.getFundsSymbol(), order.getFeesPaid());
-			}
-		}
-	}
-
 	private void updateBalances(DefaultOrder order, Candle candle) {
 		final String asset = order.getAssetsSymbol();
 		final String funds = order.getFundsSymbol();
@@ -347,7 +336,10 @@ public class SimulatedClientAccount implements ClientAccount {
 							}
 
 							account.subtractFromLockedBalance(funds, lockedFunds);
-							updateFees(order);
+
+							BigDecimal maxFees = BigDecimal.valueOf(getTradingFees().feesOnTotalOrderAmount(order));
+							account.subtractFromLockedOrFreeBalance(order.getFundsSymbol(), maxFees);
+							account.addToFreeBalance(order.getFundsSymbol(), maxFees.subtract(order.getFeesPaid()));
 						}
 					} else if (order.isShort()) {
 						if (order.hasPartialFillDetails()) {
@@ -367,8 +359,10 @@ public class SimulatedClientAccount implements ClientAccount {
 								account.subtractFromMarginReserveBalance(funds, asset, lastFillTotalPrice);
 								updateMarginReserve(asset, funds, candle);
 							}
+
+							double fee = tradingFees.feesOnAmount(order.getPartialFillTotalPrice().doubleValue(), order.getType(), order.getSide());
+							account.subtractFromFreeBalance(order.getFundsSymbol(), BigDecimal.valueOf(fee));
 						}
-						updateFees(order);
 					}
 				} else if (order.isSell()) {
 					if (order.isLong()) {
@@ -394,6 +388,10 @@ public class SimulatedClientAccount implements ClientAccount {
 
 							account.subtractFromLockedOrFreeBalance(funds, asset, accountReserve);
 							account.addToShortedBalance(asset, order.getPartialFillQuantity());
+
+							double fee = tradingFees.feesOnAmount(order.getPartialFillTotalPrice().doubleValue(), order.getType(), order.getSide());
+							BigDecimal partialFillFee = BigDecimal.valueOf(fee);
+							account.subtractFromLockedOrFreeBalance(order.getFundsSymbol(), partialFillFee);
 						}
 
 						if (order.isFinalized()) {
@@ -405,7 +403,13 @@ public class SimulatedClientAccount implements ClientAccount {
 								account.subtractFromLockedBalance(funds, unusedFunds);
 								account.addToFreeBalance(funds, unusedFunds);
 							}
-							updateFees(order);
+
+							double maxFee = tradingFees.feesOnAmount(order.getQuantity().doubleValue() * order.getPrice().doubleValue(), order.getType(), order.getSide());
+							BigDecimal lockedReserveForFees = BigDecimal.valueOf(maxFee - order.getFeesPaid().doubleValue());
+							if(lockedReserveForFees.compareTo(BigDecimal.ZERO) > 0) {
+								account.subtractFromLockedBalance(funds, lockedReserveForFees);
+								account.addToFreeBalance(funds, lockedReserveForFees);
+							}
 						}
 					}
 				}

@@ -233,8 +233,8 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		assertEquals(33.0, ada.getShorted().doubleValue(), DELTA);
 		assertEquals(79.96, usdt.getFree().doubleValue(), DELTA);
 
-		// 7 units remain to be filled. When shorting we use 50% of funds so (7 / 2) + fees on total trade amount remain locked
-		assertEquals(((40 - 33) / 2.0) + feesOn(40.0), usdt.getLocked().doubleValue(), DELTA);
+		// 7 units remain to be filled. When shorting we use 50% of funds so (7 / 2) + fees reserved to buy remainder 7 units.
+		assertEquals(((40 - 33) / 2.0) + feesOn(7.0), usdt.getLocked().doubleValue(), DELTA);
 
 		// margin over filled portion: 33 + 50%
 		assertEquals(33 * 1.5, usdt.getMarginReserve("ADA").doubleValue(), DELTA);
@@ -412,7 +412,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		executeOrder(account, order, 0.5, time++);
 
 		assertEquals((33 * 0.5) + (33 * 0.5 / 2.0), account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA); //proceeds + 50% reserve
-		assertEquals(50.04489501 - (33 * 0.5 / 2.0), account.getBalance("USDT").getLocked().doubleValue(), DELTA); //50% of traded amount moved from locked to margin reserve
+		assertEquals(50.04489501 - (33 * 0.5 / 2.0) - feesOn(33 * 0.5), account.getBalance("USDT").getLocked().doubleValue(), DELTA); //50% of traded amount moved from locked to margin reserve
 		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
@@ -422,7 +422,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		tick(account.getTraderOf("ADAUSDT"), time++, 0.5);
 
 		assertEquals((66 * 0.5) + (66 * 0.5 / 2.0), account.getBalance("USDT").getMarginReserve("ADA").doubleValue(), DELTA); //proceeds + 50% reserve
-		assertEquals(50.04489501 - (66 * 0.5 / 2.0), account.getBalance("USDT").getLocked().doubleValue(), DELTA);  //50% of traded amount moved from locked to margin reserve
+		assertEquals(50.04489501 - (66 * 0.5 / 2.0) - feesOn(66 * 0.5), account.getBalance("USDT").getLocked().doubleValue(), DELTA);  //50% of traded amount moved from locked to margin reserve
 		assertEquals(49.95510499, account.getBalance("USDT").getFree().doubleValue(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getFree().doubleValue(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getLocked().doubleValue(), DELTA);
@@ -454,7 +454,7 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 
 		double originalReserveRemaining = originalReserve - 33 * 0.4; //subtract amount bought back from original reserve
 		double freed = originalReserveRemaining - newReserve;
-		assertEquals(free + freed, account.getBalance("USDT").getFree().doubleValue(), DELTA); //amount returned from margin reserve
+		assertEquals(free + freed - feesOn(33 * 0.4), account.getBalance("USDT").getFree().doubleValue(), DELTA); //amount returned from margin reserve
 
 		long finalTime = time;
 		order.getAttachments().forEach(o -> cancelOrder(account, o, 0.5, finalTime));

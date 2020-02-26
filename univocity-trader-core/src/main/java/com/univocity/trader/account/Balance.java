@@ -91,6 +91,7 @@ public class Balance implements Cloneable {
 	}
 
 	private BigDecimal ensurePositive(BigDecimal bd, String field) {
+		//System.out.println(symbol + " " + field + " = " + bd.toPlainString());
 		bd = round(bd == null ? BigDecimal.ZERO : bd);
 		if (bd.compareTo(BigDecimal.ZERO) >= 0) {
 			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
