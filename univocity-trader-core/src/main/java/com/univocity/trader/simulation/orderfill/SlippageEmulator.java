@@ -119,7 +119,14 @@ public class SlippageEmulator implements OrderFillEmulator {
 				quantity -= volumePerPip;
 				if (totalVolume < 0 || quantity < 0) {
 					quantity = volumePerPip - Math.abs(Math.min(totalVolume, quantity));
-					executed += quantity;
+
+					//check if fully filled with 1% disparity against original quantity (caused by precision errors)
+					if(Math.abs(1 - (order.getQuantity() / (executed + quantity))) * 100.0 < 1.0){
+						quantity = order.getQuantity() - executed;
+						executed = order.getQuantity();
+					} else {
+						executed += quantity;
+					}
 
 					totalPaid += price * quantity;
 					tradedVolume += quantity;

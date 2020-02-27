@@ -88,7 +88,8 @@ public class SimulatedClientAccount implements ClientAccount {
 				if (availableAssets < quantity) {
 					double difference = 1.0 - (availableAssets / quantity);
 					if (difference < 0.00001) { //0.001% quantity mismatch.
-						quantity = availableAssets * 0.9999;
+						quantity = availableAssets;
+						orderDetails.setQuantity(quantity);
 					}
 				}
 				if (availableAssets >= quantity) {
@@ -182,7 +183,6 @@ public class SimulatedClientAccount implements ClientAccount {
 
 	@Override
 	public final synchronized boolean updateOpenOrders(String symbol, Candle candle) {
-//		System.out.println("-------");
 		Set<Order> s = orders.get(symbol);
 		if (s == null || s.isEmpty()) {
 			return false;
