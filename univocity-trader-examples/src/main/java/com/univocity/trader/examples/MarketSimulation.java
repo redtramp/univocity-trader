@@ -43,7 +43,7 @@ public class MarketSimulation {
 
 		account.listeners()
 				.add(new OrderExecutionToLog())
-				.add(new OrderExecutionToCsv().fileName("simulation"))
+				.add(new OrderExecutionToCsv().fileName("simulation.csv"))
 				.add((symbol) -> new SimpleStrategyStatistics(symbol))
 		;
 

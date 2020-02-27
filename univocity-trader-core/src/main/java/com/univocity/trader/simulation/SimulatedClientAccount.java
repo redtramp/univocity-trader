@@ -182,7 +182,7 @@ public class SimulatedClientAccount implements ClientAccount {
 
 	@Override
 	public final synchronized boolean updateOpenOrders(String symbol, Candle candle) {
-		System.out.println("-------");
+//		System.out.println("-------");
 		Set<Order> s = orders.get(symbol);
 		if (s == null || s.isEmpty()) {
 			return false;
@@ -267,7 +267,7 @@ public class SimulatedClientAccount implements ClientAccount {
 			triggerPrice = parent.getTriggerPrice();
 			trigger = parent.getTriggerCondition();
 		} else {
-			triggerPrice = (attachment.getTriggerPrice() != null) ? attachment.getTriggerPrice() : attachment.getPrice();
+			triggerPrice = (attachment.getTriggerPrice() != 0.0) ? attachment.getTriggerPrice() : attachment.getPrice();
 			trigger = attachment.getTriggerCondition();
 		}
 		if (triggerPrice == null) {

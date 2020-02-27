@@ -73,7 +73,7 @@ public class Balance implements Cloneable {
 	}
 
 	private double ensurePositive(double bd, String field) {
-		System.out.println(symbol + " " + field + " = " + roundStr(bd));
+//		System.out.println(symbol + " " + field + " = " + roundStr(bd));
 		bd = round(BigDecimal.valueOf(bd));
 		if (bd >= 0) {
 			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();

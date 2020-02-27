@@ -47,7 +47,7 @@ public interface Order {
 
 	TriggerCondition getTriggerCondition();
 
-	Double getTriggerPrice();
+	double getTriggerPrice();
 
 	boolean isActive();
 

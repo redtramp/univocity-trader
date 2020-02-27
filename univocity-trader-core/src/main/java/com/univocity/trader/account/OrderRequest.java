@@ -19,7 +19,7 @@ public class OrderRequest {
 	private long time;
 	private final Order resubmittedFrom;
 
-	private Double triggerPrice;
+	private double triggerPrice;
 	private Order.TriggerCondition triggerCondition = NONE;
 
 	private double price = 0.0;
@@ -172,15 +172,15 @@ public class OrderRequest {
 		return this.triggerCondition;
 	}
 
-	public final Double getTriggerPrice() {
+	public final double getTriggerPrice() {
 		return this.triggerPrice;
 	}
 
 	public final void setTriggerCondition(Order.TriggerCondition triggerCondition, Double triggerPrice) {
 		this.triggerCondition = triggerCondition;
 		this.triggerPrice = triggerPrice;
-		this.active = !(triggerCondition != Order.TriggerCondition.NONE && triggerPrice != null);
-		if (this.price == 0.0 && triggerPrice != null) {
+		this.active = !(triggerCondition != Order.TriggerCondition.NONE && triggerPrice != 0.0);
+		if (this.price == 0.0 && triggerPrice != 0.0) {
 			this.price = triggerPrice;
 		}
 	}
