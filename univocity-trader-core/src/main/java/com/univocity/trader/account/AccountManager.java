@@ -59,7 +59,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		this.simulation = simulation;
 		this.account = account;
 		this.configuration = configuration;
-		this.marginReserveFactor = round(account.marginReservePercentage() / 100.0);
+		this.marginReserveFactor = account.marginReservePercentage() / 100.0;
 		this.marginReserveFactorPct = marginReserveFactor;
 		this.client = new ExchangeClient(this);
 
@@ -82,7 +82,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 	}
 
 	public double applyMarginReserve(double amount) {
-		return round(amount * marginReserveFactor);
+		return amount * marginReserveFactor;
 	}
 
 	/**

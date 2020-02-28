@@ -473,7 +473,7 @@ public class Trade implements Comparable<Trade> {
 			}
 		}
 
-		return round(total);
+		return total;
 	}
 
 	public boolean isFinalized() {

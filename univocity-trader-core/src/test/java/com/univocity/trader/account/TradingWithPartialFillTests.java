@@ -36,16 +36,16 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 
 		assertEquals(33.0, order.getExecutedQuantity(), DELTA); //each tick has volume = 33 units
 		assertEquals(33.0, account.getBalance("ADA").getFree(), DELTA);
-		assertEquals(60.00404, account.getBalance("USDT").getFree(), DELTA);
-		assertEquals(39.99596, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(60.004039996, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(39.995960004, account.getBalance("USDT").getLocked(), DELTA);
 
 		cancelOrder(account, order, 2);
 
 		assertEquals(33.0, order.getExecutedQuantity(), DELTA); //each tick has volume = 33 units
 		assertEquals(33.0, account.getBalance("ADA").getFree(), DELTA);
 		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
-		assertEquals(100.0, account.getBalance("USDT").getFree() + order.getExecutedQuantity() + feesOn(33));
-		assertEquals(60.00404 + order.getRemainingQuantity() + (feesOn(order.getQuantity()) - feesOn(33.0)), account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(100.0, account.getBalance("USDT").getFree() + order.getExecutedQuantity() + feesOn(33), DELTA);
+		assertEquals(60.004039996 + order.getRemainingQuantity() + (feesOn(order.getQuantity()) - feesOn(33.0)), account.getBalance("USDT").getFree(), DELTA);
 	}
 
 	@Test
@@ -65,8 +65,8 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 
 		assertEquals(33.0, order.getExecutedQuantity(), DELTA); //each tick has volume = 33 units
 		assertEquals(33.0, account.getBalance("ADA").getFree(), DELTA);
-		assertEquals(60.00404, account.getBalance("USDT").getFree(), DELTA);
-		assertEquals(39.99596, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(60.004039996, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(39.995960004, account.getBalance("USDT").getLocked(), DELTA);
 		assertEquals(6.956004, order.getRemainingQuantity(), DELTA);
 
 		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(2, 0.5)); //next tick should fill 6.956004 units at $0.5

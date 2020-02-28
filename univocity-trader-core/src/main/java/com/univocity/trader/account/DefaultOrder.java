@@ -53,23 +53,23 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 
 	public double getTotalOrderAmountAtAveragePrice() {
 		if (averagePrice == 0) {
-			return round(getPrice() * getQuantity());
+			return getPrice() * getQuantity();
 		}
-		return round(averagePrice * getQuantity());
+		return averagePrice * getQuantity();
 	}
 
 	public void setExecutedQuantity(double executedQuantity) {
-		this.executedQuantity = round(executedQuantity);
+		this.executedQuantity = executedQuantity;
 	}
 
 	@Override
 	public void setPrice(double price) {
-		super.setPrice(round(price));
+		super.setPrice(price);
 	}
 
 	@Override
 	public void setQuantity(double quantity) {
-		super.setQuantity(round(quantity));
+		super.setQuantity(quantity);
 	}
 
 	@Override
@@ -98,7 +98,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	public void setFeesPaid(double feesPaid) {
-		this.feesPaid = round(feesPaid);
+		this.feesPaid = feesPaid;
 	}
 
 	@Override
@@ -107,7 +107,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	}
 
 	public void setAveragePrice(double averagePrice) {
-		this.averagePrice = round(averagePrice);
+		this.averagePrice = averagePrice;
 	}
 
 	@Override

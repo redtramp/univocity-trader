@@ -70,15 +70,15 @@ public interface Order {
 	}
 
 	default double getRemainingQuantity() {
-		return round(getQuantity() - getExecutedQuantity());
+		return getQuantity() - getExecutedQuantity();
 	}
 
 	default double getTotalTraded() {
-		return round(getExecutedQuantity() * getAveragePrice());
+		return getExecutedQuantity() * getAveragePrice();
 	}
 
 	default double getTotalOrderAmount() {
-		return round(getQuantity() * getPrice());
+		return getQuantity() * getPrice();
 	}
 
 	default boolean isFinalized() {

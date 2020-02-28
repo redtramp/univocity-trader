@@ -64,7 +64,7 @@ public class OrderRequest {
 	}
 
 	public void setPrice(double price) {
-		this.price = round(price);
+		this.price = price;
 	}
 
 	public double getQuantity() {
@@ -72,7 +72,7 @@ public class OrderRequest {
 	}
 
 	public void setQuantity(double quantity) {
-		this.quantity = round(quantity);
+		this.quantity = quantity;
 	}
 
 	public Order.Side getSide() {
@@ -92,7 +92,7 @@ public class OrderRequest {
 	}
 
 	public double getTotalOrderAmount() {
-		return round(price * quantity);
+		return price * quantity;
 	}
 
 	public long getTime() {

@@ -159,7 +159,7 @@ public class LongTradingTests extends OrderFillChecker {
 
 		usdBalance = account.getAmount("USDT");
 		assertEquals(initialBalance - cost, usdBalance, DELTA);
-		assertEquals(60.00404, usdBalance, DELTA);
+		assertEquals(60.004039996, usdBalance, DELTA);
 		assertEquals(quantity1, account.getAmount("ADA"), DELTA);
 
 		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.BUY, LONG, 2, null);
@@ -495,7 +495,7 @@ public class LongTradingTests extends OrderFillChecker {
 		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 		assertEquals(79.91200800, account.getBalance("ADA").getLocked(), DELTA);
 
-		assertEquals(60.00404000, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(60.004039996, account.getBalance("USDT").getFree(), DELTA);
 		assertEquals(0.0, account.getBalance("USDT").getShorted(), DELTA);
 		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
 
@@ -510,7 +510,7 @@ public class LongTradingTests extends OrderFillChecker {
 		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
 
-		assertEquals(60.00404000, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(60.004039996, account.getBalance("USDT").getFree(), DELTA);
 		assertEquals(0.0, account.getBalance("USDT").getShorted(), DELTA);
 		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
 	}

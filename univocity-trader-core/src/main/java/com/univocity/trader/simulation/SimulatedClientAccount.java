@@ -318,7 +318,6 @@ public class SimulatedClientAccount implements ClientAccount {
 		final String funds = order.getFundsSymbol();
 
 		final double lastFillTotalPrice = order.getPartialFillTotalPrice();
-//		final double lastFillTotalPrice = round(order.getPartialFillTotalPrice());
 
 		try {
 			synchronized (account) {

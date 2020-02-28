@@ -357,7 +357,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		long time = 1;
 
 		Order order = submitOrder(account, Order.Side.SELL, SHORT, time++, 4.0);
-		assertEquals(50.04489501, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(50.04489500999999, account.getBalance("USDT").getLocked(), DELTA);
 		assertEquals(100.0, account.getBalance("USDT").getLocked() + account.getBalance("USDT").getFree());
 
 		cancelOrder(account, order, time++);

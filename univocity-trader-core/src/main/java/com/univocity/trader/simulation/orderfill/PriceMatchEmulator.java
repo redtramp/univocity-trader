@@ -3,9 +3,6 @@ package com.univocity.trader.simulation.orderfill;
 import com.univocity.trader.account.*;
 import com.univocity.trader.candles.*;
 
-import java.math.*;
-
-import static com.univocity.trader.account.Balance.*;
 import static com.univocity.trader.account.Order.Side.*;
 import static com.univocity.trader.account.Order.Type.*;
 
@@ -31,8 +28,8 @@ public class PriceMatchEmulator implements OrderFillEmulator {
 	@Override
 	public void fillOrder(DefaultOrder order, Candle candle) {
 		if (order.getType() == LIMIT) {
-			if ((order.getSide() == BUY && order.getPrice() >= round(candle.low))
-					|| (order.getSide() == SELL && order.getPrice()<=round(candle.high))) {
+			if ((order.getSide() == BUY && order.getPrice() >= candle.low)
+					|| (order.getSide() == SELL && order.getPrice() <= candle.high)) {
 				order.setStatus(Order.Status.FILLED);
 				order.setExecutedQuantity(order.getQuantity());
 

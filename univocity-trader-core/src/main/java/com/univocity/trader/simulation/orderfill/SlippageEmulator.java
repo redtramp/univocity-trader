@@ -4,8 +4,6 @@ import com.univocity.trader.account.*;
 import com.univocity.trader.candles.*;
 import com.univocity.trader.config.*;
 
-import static com.univocity.trader.account.Balance.*;
-
 /**
  * An {@link OrderFillEmulator} that emulates slippage.
  *
@@ -121,7 +119,7 @@ public class SlippageEmulator implements OrderFillEmulator {
 					quantity = volumePerPip - Math.abs(Math.min(totalVolume, quantity));
 
 					//check if fully filled with 1% disparity against original quantity (caused by precision errors)
-					if(Math.abs(1 - (order.getQuantity() / (executed + quantity))) * 100.0 < 1.0){
+					if (Math.abs(1 - (order.getQuantity() / (executed + quantity))) * 100.0 < 1.0) {
 						quantity = order.getQuantity() - executed;
 						executed = order.getQuantity();
 					} else {
@@ -168,7 +166,7 @@ public class SlippageEmulator implements OrderFillEmulator {
 			}
 			order.setExecutedQuantity(executed);
 			if (order.getExecutedQuantity() > 0) {
-				if (round(order.getExecutedQuantity()) >= round(order.getQuantity())) {
+				if (order.getExecutedQuantity() >= order.getQuantity()) {
 					order.setStatus(Order.Status.FILLED);
 				} else {
 					order.setStatus(Order.Status.PARTIALLY_FILLED);
