@@ -4,8 +4,6 @@ import com.univocity.trader.account.*;
 import org.apache.commons.lang3.*;
 import org.slf4j.*;
 
-import java.math.*;
-
 public class OrderExecutionToLog implements OrderListener {
 
 	private static final Logger log = LoggerFactory.getLogger(OrderExecutionToLog.class);
@@ -95,7 +93,11 @@ public class OrderExecutionToLog implements OrderListener {
 
 					details += ". Expected P/L " + pl;
 
-					details += " | " + trade.ticks() + " ticks [min " + o.printMinPriceAndChange() + ", max $" + o.printMaxPriceAndChange() + ")]";
+					if (trade.ticks() > 0) {
+						details += " | " + trade.ticks() + " ticks [min " + o.printMinPriceAndChange() + ", max $" + o.printMaxPriceAndChange() + ")]";
+					} else {
+						details += " |";
+					}
 					details += " " + trade.exitReason();
 				}
 			}

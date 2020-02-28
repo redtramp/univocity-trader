@@ -8,7 +8,6 @@ import com.univocity.trader.simulation.orderfill.*;
 import com.univocity.trader.strategy.*;
 import org.slf4j.*;
 
-import java.math.*;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -154,7 +153,7 @@ public class Trade implements Comparable<Trade> {
 				}
 			}
 		}
-		if (exitReason == null) {
+		if (!stopped) {
 			for (int i = 0; i < monitors.length; i++) {
 				String exit = monitors[i].handleStop(this, signal, strategy);
 				if (exit != null) {
@@ -485,16 +484,10 @@ public class Trade implements Comparable<Trade> {
 	}
 
 	private boolean checkIfFinalized() {
-		if (isPlaceholder) {
+		if (isPlaceholder || position.isEmpty()) {
 			return true;
 		}
-		if (position.isEmpty()) {
-			if (!exitOrders.isEmpty()) {
-				throw new IllegalStateException("Can't hold a position without buy order information.");
-			} else {
-				return true;
-			}
-		}
+
 		if (exitOrders.isEmpty()) {
 			return false;
 		}
@@ -536,7 +529,12 @@ public class Trade implements Comparable<Trade> {
 	}
 
 	public double estimateProfitLossPercentage(Order order) {
-		return priceChangePct() - 100.0 * ((trader.tradingFees().feesOnOrder(order)) / order.getTotalOrderAmount());
+		double change = priceChangePct();
+		if (!order.isActive() && order.getTriggerPrice() != 0.0) {
+			double price = order.getTriggerPrice();
+			change = isLong() ? positivePriceChangePct(price, trader.lastClosingPrice()) : -positivePriceChangePct(price, trader.lastClosingPrice());
+		}
+		return change - 100.0 * ((trader.tradingFees().feesOnOrder(order)) / order.getTotalOrderAmount());
 	}
 
 	public boolean tryingToExit() {
@@ -623,15 +621,15 @@ public class Trade implements Comparable<Trade> {
 
 	public boolean hasOrder(Order order) {
 		if ((order.isBuy() && order.isLong()) || (order.isSell() && order.isShort())) {
-			if (position.get(order.getOrderId()) != null) {
+			if (position.containsKey(order.getOrderId()) || order.getParentOrderId() != null && exitOrders.containsKey(order.getParentOrderId())) {
 				return true;
 			}
 		} else if ((order.isSell() && isLong()) || (order.isShort() && order.isBuy()) || isPlaceholder) {
-			if (exitOrders.get(order.getOrderId()) != null) {
+			if (exitOrders.containsKey(order.getOrderId()) || order.getParentOrderId() != null && position.containsKey(order.getParentOrderId())) {
 				return true;
 			}
 		}
-		return pastOrders.get(order.getOrderId()) != null;
+		return pastOrders.get(order.getOrderId()) != null || order.getParentOrderId() != null && pastOrders.containsKey(order.getParentOrderId());
 	}
 
 	/**

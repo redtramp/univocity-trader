@@ -208,6 +208,9 @@ public interface Order {
 	}
 
 	default double getFillPct() {
+		if(getQuantity() == 0.0){
+			return 0.0;
+		}
 		return getExecutedQuantity() / getQuantity() * 100.0;
 	}
 

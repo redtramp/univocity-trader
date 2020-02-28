@@ -96,8 +96,10 @@ public class OrderExecutionLine {
 		freeBalanceReferenceCurrency = refPriceDetails.priceToString(trader.balance().getFree());
 		holdings = refPriceDetails.priceToString(trader.holdings());
 
+		double priceAmount = order == null || order.getPrice() == 0.0 ? trader.latestCandle().close : order.getPrice();
+
 		if (order != null) {
-			price = priceDetails.priceToString(trader.latestCandle().close);
+			price = priceDetails.priceToString(priceAmount);
 			fundSymbol = trader.fundSymbol();
 			closeTime = trader.latestCandle().closeTimestamp();
 			assetSymbol = trader.assetSymbol();

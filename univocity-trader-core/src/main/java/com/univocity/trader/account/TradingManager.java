@@ -290,7 +290,13 @@ public class TradingManager {
 	private void notifyOrderSubmitted(Order order, Trade trade, OrderListener[] notifications) {
 		for (int i = 0; i < notifications.length; i++) {
 			try {
-				notifications[i].orderSubmitted(order, getTradeForOrder(trade, order), client);
+				trade = getTradeForOrder(trade, order);
+				notifications[i].orderSubmitted(order, trade, client);
+				if (order.getAttachments() != null) {
+					for (Order attached : order.getAttachments()) {
+						notifications[i].orderSubmitted(attached, trade, client);
+					}
+				}
 			} catch (Exception e) {
 				log.error("Error sending orderSubmitted notification for order: " + order, e);
 			}
@@ -300,7 +306,8 @@ public class TradingManager {
 	private void notifyOrderFinalized(Order order, Trade trade, OrderListener[] notifications) {
 		for (int i = 0; i < notifications.length; i++) {
 			try {
-				notifications[i].orderFinalized(order, getTradeForOrder(trade, order), client);
+				trade = getTradeForOrder(trade, order);
+				notifications[i].orderFinalized(order, trade, client);
 			} catch (Exception e) {
 				log.error("Error sending orderFinalized notification for order: " + order, e);
 			}
@@ -311,6 +318,7 @@ public class TradingManager {
 		trader.orderFinalized(order);
 		notifyOrderFinalized(order, trade, this.notifications);
 		notifyOrderFinalized(order, trade, trader.notifications);
+
 	}
 
 	void notifySimulationEnd() {

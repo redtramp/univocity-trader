@@ -4,8 +4,6 @@ import com.univocity.trader.*;
 import com.univocity.trader.candles.*;
 import org.junit.*;
 
-import java.math.*;
-
 import static com.univocity.trader.account.Order.Status.*;
 import static com.univocity.trader.account.Order.Type.*;
 import static com.univocity.trader.account.Trade.Side.*;
@@ -433,6 +431,88 @@ public class LongTradingTests extends OrderFillChecker {
 		assertEquals(0.0, account.getBalance("ADA").getFree(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
+	}
+
+	@Test
+	public void testCancellationOfOrdersInBracket() {
+		AccountManager account = getAccountManager(new DefaultOrderManager() {
+			@Override
+			public void prepareOrder(SymbolPriceDetails priceDetails, OrderBook book, OrderRequest order, Candle latestCandle) {
+				if (order.isBuy() && order.isLong() || order.isSell() && order.isShort()) {
+					OrderRequest limitSellOnLoss = order.attach(LIMIT, -1.0);
+					OrderRequest takeProfit = order.attach(LIMIT, 1.0);
+				}
+			}
+		});
+
+
+		final double MAX = 40.0;
+		double initialBalance = 100;
+		long time = 0;
+		double unitPrice = 0.5;
+
+		account.setAmount("USDT", initialBalance);
+		account.configuration().maximumInvestmentAmountPerTrade(MAX);
+
+		Trader trader = account.getTraderOf("ADAUSDT");
+
+		double usdBalance = account.getAmount("USDT");
+		tradeOnPrice(trader, ++time, unitPrice, BUY);
+		final Trade trade = trader.trades().iterator().next();
+
+		double quantity1 = checkTradeAfterLongBracketOrder(usdBalance, trade, 40.0, 0.0, unitPrice, unitPrice, unitPrice);
+		usdBalance = account.getAmount("USDT");
+
+		double amountSpent = addFees(quantity1 * unitPrice);
+
+		assertEquals(40.0 / unitPrice * 0.9999 * 0.999, quantity1); //taking offset & fees out
+		assertEquals(initialBalance - amountSpent, usdBalance, DELTA); //attached orders submitted, so 1x fees again
+
+		Order parent = trade.position().iterator().next();
+		assertEquals(2, parent.getAttachments().size());
+
+		Order profitOrder = null;
+		Order lossOrder = null;
+
+		for (Order o : parent.getAttachments()) {
+			assertEquals(NEW, o.getStatus());
+			assertEquals(parent.getOrderId(), o.getParentOrderId());
+			assertFalse(o.isActive());
+			if (o.getTriggerPrice() > unitPrice) {
+				profitOrder = o;
+			} else {
+				lossOrder = o;
+			}
+		}
+
+		assertNotNull(profitOrder);
+		assertNotNull(lossOrder);
+
+		assertEquals(parent, profitOrder.getParent());
+		assertEquals(parent, lossOrder.getParent());
+
+		assertEquals(0.0, account.getBalance("ADA").getFree(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
+		assertEquals(79.91200800, account.getBalance("ADA").getLocked(), DELTA);
+
+		assertEquals(60.00404000, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getShorted(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
+
+		profitOrder.cancel();
+		lossOrder.cancel();
+
+		tick(trader, time, 0.5);
+
+
+
+		assertEquals(79.91200800, account.getBalance("ADA").getFree(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
+		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
+
+		assertEquals(60.00404000, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getShorted(), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
 	}
 
 

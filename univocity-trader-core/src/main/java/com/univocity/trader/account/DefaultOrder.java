@@ -8,7 +8,7 @@ import static com.univocity.trader.account.Balance.*;
 
 public class DefaultOrder extends OrderRequest implements Order, Comparable<DefaultOrder> {
 
-	private static final AtomicLong orderIds = new AtomicLong(1);
+	private static final AtomicLong orderIds = new AtomicLong(0);
 
 	private final long id = orderIds.incrementAndGet();
 	private String orderId = String.valueOf(id);
