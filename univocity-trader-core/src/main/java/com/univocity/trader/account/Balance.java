@@ -5,6 +5,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
+import static com.univocity.trader.config.Allocation.*;
+
 public class Balance implements Cloneable {
 
 	public static final Map<String, AtomicLong> balanceUpdateCounts = new ConcurrentHashMap<>();
@@ -16,7 +18,7 @@ public class Balance implements Cloneable {
 	private Map<String, Double> marginReserves = new ConcurrentHashMap<>();
 
 	public static final MathContext ROUND_MC_STR = new MathContext(8, RoundingMode.HALF_EVEN);
-	public static final MathContext ROUND_MC = new MathContext(8, RoundingMode.HALF_EVEN);
+	public static final MathContext ROUND_MC = new MathContext(12, RoundingMode.HALF_EVEN);
 
 	public Balance(String symbol) {
 		this.symbol = symbol;
@@ -81,7 +83,12 @@ public class Balance implements Cloneable {
 			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
 			return bd;
 		}
-		throw new IllegalStateException(symbol + ": can't set " + field + " to  " + bd);
+		if(bd >= -EFFECTIVELY_ZERO){
+			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
+			return 0.0;
+		} else {
+			throw new IllegalStateException(symbol + ": can't set " + field + " to  " + bd);
+		}
 	}
 
 	public double getTotal() {
