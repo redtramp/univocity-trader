@@ -4,8 +4,6 @@ import com.univocity.trader.*;
 import com.univocity.trader.candles.*;
 import org.junit.*;
 
-import java.math.*;
-
 import static com.univocity.trader.account.Order.Status.*;
 import static com.univocity.trader.account.Order.Type.*;
 import static com.univocity.trader.account.Trade.Side.*;
@@ -118,7 +116,6 @@ public class ShortTradingTests extends OrderFillChecker {
 
 		//COVER
 		tradeOnPrice(trader, 20, 1.0, BUY);
-		checkTradeAfterShortBuy(usdBalance, reservedBalance, trade, quantity1, 1.0, 1.2, 0.9);
 
 		assertFalse(trade.stopped());
 		assertEquals("Buy signal", trade.exitReason());
@@ -129,22 +126,23 @@ public class ShortTradingTests extends OrderFillChecker {
 		//profit/loss includes fees.
 		assertEquals(150.0 - 11.309768909, trader.holdings(), DELTA);
 
+		checkTradeAfterShortBuy(usdBalance, reservedBalance, trade, quantity1, 1.0, 1.2, 0.9);
 	}
 
 	public void checkBalancesAfterShort(double initialBalance, double currentBalance, double quantity, double unitPrice) {
-		//half of quantity * unit price (50% of short sell goes to margin account) + fees over full quantity buy back
-		double totalSale = (quantity * unitPrice);
 		double reserved = quantity * 0.5 * unitPrice;
 		//remove margin reserve and fees paid to sell everything.
-		assertEquals(initialBalance - (feesOn(totalSale) + reserved), currentBalance, DELTA);
+		assertEquals(initialBalance - reserved, currentBalance, DELTA);
 	}
 
 	public void checkBalancesAfterBuyBack(double initialBalance, double currentBalance, double quantity, double saleUnitPrice, double unitPrice) {
-		double totalSale = quantity * saleUnitPrice; //don't take fees from sale as initial balance comes with fees accounted for
-		double totalBuyback = addFees(quantity * unitPrice);
+		double totalSale = quantity * saleUnitPrice;
+		double totalBuyback = quantity * unitPrice;
 		double reserved = totalSale * 0.5;
+		double feesToShort = feesOn(totalSale);
+		double feesToCover = feesOn(totalBuyback);
 
-		assertEquals(initialBalance + reserved + totalSale - totalBuyback, currentBalance, DELTA);
+		assertEquals(initialBalance + reserved + totalSale - totalBuyback - feesToShort - feesToCover, currentBalance, DELTA);
 	}
 
 	@Test
@@ -171,7 +169,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		checkBalancesAfterShort(initialBalance, usdBalance, 40, 1.0);
 		double assetsAt1_0 = account.getShortedAmount("ADA");
 		double marginAt_10 = account.getMarginReserve("USDT", "ADA");
-		assertEquals(assetsAt1_0 * 1.5, marginAt_10, DELTA);
+		assertEquals(assetsAt1_0 * 1.5 - feesOn(assetsAt1_0 * 1.0), marginAt_10, DELTA);
 
 
 		OrderRequest or = new OrderRequest("ADA", "USDT", Order.Side.SELL, SHORT, 2, null);
@@ -197,18 +195,18 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertEquals(40, assetsAt0_90, DELTA);
 		//margin requirement updated based on filled price ($0.92 here). Funds are locked according to margin reserve %.
 		double marginAt0_90 = account.getMarginReserve("USDT", "ADA") - marginAt_10;
-		assertEquals(assetsAt0_90 * 0.92 * 1.5, marginAt0_90, DELTA);
+		assertEquals(assetsAt0_90 * 0.92 * 1.5 - feesOn(assetsAt0_90 * 0.92), marginAt0_90, DELTA);
 
 		assertEquals(assetsAt1_0, assetsAt0_90, DELTA);
 
-		double amountInMargin = (assetsAt1_0 * 1.0 * 1.5) + (assetsAt0_90 * 0.92 * 1.5);
+		double feesPaid = feesOn(assetsAt1_0 * 1.0) + feesOn(assetsAt0_90 * 0.92);
+		double amountInMargin = (assetsAt1_0 * 1.0 * 1.5)  + (assetsAt0_90 * 0.92 * 1.5) - feesPaid;
 		assertEquals(amountInMargin, account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
 
-		double feesPaid = feesOn(assetsAt1_0 * 1.0) + feesOn(assetsAt0_90 * 0.92);
 		double fundsInMargin = (assetsAt1_0 * 1.0 * 0.5) + (assetsAt0_90 * 0.92 * 0.5);
-		assertEquals(initialBalance - fundsInMargin - feesPaid, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(initialBalance - fundsInMargin, account.getBalance("USDT").getFree(), DELTA);
 	}
 
 	@Test
@@ -357,7 +355,7 @@ public class ShortTradingTests extends OrderFillChecker {
 		long time = 1;
 
 		Order order = submitOrder(account, Order.Side.SELL, SHORT, time++, 4.0);
-		assertEquals(50.04489500999999, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(49.945005, account.getBalance("USDT").getLocked(), DELTA);
 		assertEquals(100.0, account.getBalance("USDT").getLocked() + account.getBalance("USDT").getFree());
 
 		cancelOrder(account, order, time++);
@@ -367,8 +365,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		executeOrder(account, order, time++); //actually execute order
 
 		assertEquals(0.00, account.getBalance("USDT").getLocked(), DELTA);
-		assertEquals(49.95510499, account.getBalance("USDT").getFree(), DELTA);
-		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(50.054995, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(149.73512499, account.getMarginReserve("USDT", "ADA"), DELTA);
 		assertEquals(0.00, account.getBalance("ADA").getFree(), DELTA);
 		assertEquals(3.9956004, account.getBalance("ADA").getShorted(), DELTA);
 
@@ -376,8 +374,8 @@ public class ShortTradingTests extends OrderFillChecker {
 		cancelOrder(account, order, time++);
 
 		assertEquals(0.00, account.getBalance("USDT").getLocked(), DELTA);
-		assertEquals(49.95510499, account.getBalance("USDT").getFree(), DELTA);
-		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(50.054995, account.getBalance("USDT").getFree(), DELTA);
+		assertEquals(149.73512499, account.getMarginReserve("USDT", "ADA"), DELTA);
 		assertEquals(0.00, account.getBalance("ADA").getFree(), DELTA);
 		assertEquals(3.9956004, account.getBalance("ADA").getShorted(), DELTA);
 
@@ -390,5 +388,4 @@ public class ShortTradingTests extends OrderFillChecker {
 		assertEquals(2.0043996, account.getBalance("ADA").getFree(), DELTA);//bought some ADA here because BUY order buys 4 whole units and the short was for 3.9956004 units
 		assertEquals(0.0, account.getBalance("ADA").getShorted(), DELTA);
 	}
-
 }

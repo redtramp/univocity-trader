@@ -134,6 +134,18 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		balance.setLocked(balance.getLocked() - amount);
 	}
 
+	public void releaseFromLockedBalance(String symbol, final double amount) {
+		Balance balance = getBalance(symbol);
+		double locked = balance.getLocked();
+		if (locked < amount) {
+			balance.setLocked(0.0);
+			balance.setFree(locked);
+		} else {
+			balance.setLocked(locked - amount);
+			balance.setFree(balance.getFree() + amount);
+		}
+	}
+
 	public void subtractFromShortedBalance(String symbol, final double amount) {
 		Balance balance = getBalance(symbol);
 		balance.setShorted(balance.getShorted() - amount);

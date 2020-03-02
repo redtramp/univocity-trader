@@ -235,10 +235,10 @@ public class OrderFillChecker {
 		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
 
 		double inReserve = account.marginReserveFactorPct() * totalSpent;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(inReserve + usdReservedBeforeTrade - feesOn(totalSpent), account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
-		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesOn(totalSpent));
+		double freeBalance = usdBalanceBeforeTrade - movedToReserve;
 		assertEquals(freeBalance, account.getAmount("USDT"), DELTA);
 
 		return quantityAfterFees;
@@ -267,7 +267,7 @@ public class OrderFillChecker {
 		assertEquals(0.0, account.getAmount("ADA"), DELTA);
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA);
 
-		double inReserve = account.marginReserveFactorPct() * totalSpent;
+		double inReserve = account.marginReserveFactorPct() * totalSpent - feesPaid;
 		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA"), 0.0000001);
 
 		double movedToReserve = inReserve - totalSpent;
@@ -291,7 +291,7 @@ public class OrderFillChecker {
 	}
 
 	void executeOrder(AccountManager account, Order order, double price, long time) {
-		Trader trader = account.getTraderOf("ADAUSDT");
+		Trader trader = account.getTraderOf(order.getSymbol());
 		trader.tradingManager.updateOpenOrders(trader.symbol(), newTick(time, price));
 	}
 
@@ -318,8 +318,12 @@ public class OrderFillChecker {
 	}
 
 	Order submitOrder(AccountManager account, Order.Side orderSide, Trade.Side tradeSide, long time, double units, double price, OrderManager orderManager) {
+		return submitOrder(account, "ADA", orderSide, tradeSide, time, units, price, orderManager);
+	}
+
+	Order submitOrder(AccountManager account, String symbol, Order.Side orderSide, Trade.Side tradeSide, long time, double units, double price, OrderManager orderManager) {
 		Candle next = newTick(time, 25.0);
-		OrderRequest req = new OrderRequest("ADA", "USDT", orderSide, tradeSide, time, null);
+		OrderRequest req = new OrderRequest(symbol, "USDT", orderSide, tradeSide, time, null);
 		req.setQuantity(units);
 		req.setPrice(price);
 
