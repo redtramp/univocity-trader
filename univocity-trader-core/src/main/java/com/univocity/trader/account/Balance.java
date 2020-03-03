@@ -83,7 +83,7 @@ public class Balance implements Cloneable {
 			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
 			return bd;
 		}
-		if(bd >= -EFFECTIVELY_ZERO){
+		if (bd >= -EFFECTIVELY_ZERO) {
 			balanceUpdateCounts.computeIfAbsent(symbol, (s) -> new AtomicLong(1)).incrementAndGet();
 			return 0.0;
 		} else {

@@ -43,13 +43,13 @@ public class SimulatedClientAccount implements ClientAccount {
 		double unitPrice = orderDetails.getPrice();
 		double orderAmount = orderDetails.getTotalOrderAmount();
 
-		double availableFunds = account.getPreciseAmount(fundsSymbol);
-		double availableAssets = account.getPreciseAmount(assetsSymbol);
+		double availableFunds = account.getAmount(fundsSymbol);
+		double availableAssets = account.getAmount(assetsSymbol);
 		if (orderDetails.isShort()) {
 			if (orderDetails.isBuy()) {
 				availableFunds = availableFunds + account.getMarginReserve(fundsSymbol, assetsSymbol);
 			} else if (orderDetails.isSell()) {
-				availableAssets = account.getPreciseShortedAmount(assetsSymbol);
+				availableAssets = account.getShortedAmount(assetsSymbol);
 			}
 		}
 
@@ -97,7 +97,7 @@ public class SimulatedClientAccount implements ClientAccount {
 				}
 			} else if (orderDetails.isShort()) {
 				if (hasFundsAvailable) {
-					double locked = account.applyMarginReserve(orderAmount) - orderAmount;
+					double locked = account.applyMarginReserve(orderAmount) - orderAmount + fees;
 					account.lockAmount(fundsSymbol, locked);
 					order = createOrder(orderDetails, quantity, unitPrice);
 				}
@@ -286,13 +286,16 @@ public class SimulatedClientAccount implements ClientAccount {
 		return false;
 	}
 
-	private void updateMarginReserve(String assetSymbol, String fundSymbol, Candle candle) {
+	private void updateMarginReserve(String assetSymbol, String fundSymbol, Candle candle, double spent) {
 		Balance funds = account.getBalance(fundSymbol);
-		double reserved = funds.getMarginReserve(assetSymbol);
-
+		double totalReserve = funds.getMarginReserve(assetSymbol);
+		double saleReserve = totalReserve / account.marginReserveFactorPct();
+		double accountReserve = totalReserve - saleReserve;
 		double shortedQuantity = account.getBalance(assetSymbol).getShorted();
+
 		if (shortedQuantity <= EFFECTIVELY_ZERO) {
-			funds.setFree(funds.getFree() + reserved);
+			double profit = saleReserve - spent;
+			funds.setFree(funds.getFree() + profit + accountReserve);
 			funds.setMarginReserve(assetSymbol, 0.0);
 		} else {
 			double close;
@@ -303,11 +306,16 @@ public class SimulatedClientAccount implements ClientAccount {
 				close = candle.close;
 			}
 
+			double profit = accountReserve - spent;
 			double newReserve = account.applyMarginReserve(shortedQuantity * close);
-			double free = funds.getFree() + reserved - newReserve;
-			if(free < 0){
+
+			double newSaleReserve = newReserve / account.marginReserveFactorPct();
+			double newAccountReserve = newReserve - newSaleReserve;
+
+			double free = funds.getFree() + accountReserve + profit - newAccountReserve;
+			if (free < 0) {
 				funds.setFree(0.0);
-				funds.setMarginReserve(assetSymbol, reserved - free);
+				funds.setMarginReserve(assetSymbol, profit - free);
 			} else {
 				funds.setFree(free);
 				funds.setMarginReserve(assetSymbol, newReserve);
@@ -347,22 +355,25 @@ public class SimulatedClientAccount implements ClientAccount {
 					} else if (order.isShort()) {
 						if (order.hasPartialFillDetails()) {
 							double covered = order.getPartialFillQuantity();
-							double shorted = account.getPreciseShortedAmount(asset);
-							double fee = tradingFees.feesOnAmount(order.getPartialFillTotalPrice(), order.getType(), order.getSide());
+							double shorted = account.getShortedAmount(asset);
+							double spent = order.getPartialFillTotalPrice();
+							double fee = tradingFees.feesOnAmount(spent, order.getType(), order.getSide());
 
 							if (covered >= shorted) { //bought to fully cover short and hold long position
 								account.subtractFromShortedBalance(asset, shorted);
-								account.subtractFromMarginReserveBalance(funds, asset, shorted * order.getAveragePrice() + fee);
-
 								double remainderBought = covered - shorted;
-								account.addToFreeBalance(asset, remainderBought);
-								updateMarginReserve(asset, funds, candle);
-								account.subtractFromFreeBalance(funds, remainderBought * order.getAveragePrice());
+								if (remainderBought > 0) {
+									account.addToFreeBalance(asset, remainderBought);
+								}
+								updateMarginReserve(asset, funds, candle, spent);
+								if (remainderBought > 0) {
+									account.subtractFromFreeBalance(funds, remainderBought * order.getAveragePrice());
+								}
 							} else {
 								account.subtractFromShortedBalance(asset, covered);
-								account.subtractFromMarginReserveBalance(funds, asset, lastFillTotalPrice + fee);
-								updateMarginReserve(asset, funds, candle);
+								updateMarginReserve(asset, funds, candle, spent);
 							}
+							account.subtractFromFreeBalance(funds, fee);
 						}
 					}
 				} else if (order.isSell()) {
@@ -385,10 +396,12 @@ public class SimulatedClientAccount implements ClientAccount {
 							double total = order.getPartialFillTotalPrice();
 							double totalReserve = account.applyMarginReserve(total);
 							double accountReserve = totalReserve - total;
-							double fee = tradingFees.feesOnAmount(order.getPartialFillTotalPrice(), order.getType(), order.getSide());
-							account.addToMarginReserveBalance(funds, asset, totalReserve - fee);
 
-							account.subtractFromLockedOrFreeBalance(funds, asset, accountReserve);
+							double fee = tradingFees.feesOnAmount(order.getPartialFillTotalPrice(), order.getType(), order.getSide());
+							account.subtractFromLockedBalance(funds, fee);
+
+							account.addToMarginReserveBalance(funds, asset, totalReserve);
+							account.subtractFromLockedBalance(funds, accountReserve);
 							account.addToShortedBalance(asset, order.getPartialFillQuantity());
 						}
 
@@ -399,6 +412,12 @@ public class SimulatedClientAccount implements ClientAccount {
 							if (unusedReserve > 0) {
 								double unusedFunds = unusedReserve - (order.getTotalOrderAmountAtAveragePrice() - totalTraded);
 								account.releaseFromLockedBalance(funds, unusedFunds);
+							}
+
+							double maxFees = tradingFees.feesOnOrder((Order) order);
+							double unusedFees = maxFees - order.getFeesPaid();
+							if (unusedFees > 0) {
+								account.releaseFromLockedBalance(funds, unusedFees);
 							}
 						}
 					}

@@ -96,22 +96,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		return balances.getOrDefault(symbol, Balance.ZERO).getFree();
 	}
 
-	/**
-	 * Returns the amount held in the account for the given symbol.
-	 *
-	 * @param symbol the symbol whose amount will be returned
-	 *
-	 * @return the amount held for the given symbol.
-	 */
-	public double getPreciseAmount(String symbol) {
-		return balances.getOrDefault(symbol, Balance.ZERO).getFree();
-	}
-
 	public double getShortedAmount(String symbol) {
-		return balances.getOrDefault(symbol, Balance.ZERO).getShorted();
-	}
-
-	public double getPreciseShortedAmount(String symbol) {
 		return balances.getOrDefault(symbol, Balance.ZERO).getShorted();
 	}
 
@@ -618,7 +603,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 
 		if (tradeSide == LONG) {
 			if (orderPreparation.isSell()) {
-				double availableAssets = getPreciseAmount(orderPreparation.getAssetsSymbol());
+				double availableAssets = getAmount(orderPreparation.getAssetsSymbol());
 				if (availableAssets < quantity) {
 					quantity = availableAssets;
 				}

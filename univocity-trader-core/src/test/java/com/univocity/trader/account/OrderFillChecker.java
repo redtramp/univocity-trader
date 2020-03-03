@@ -211,6 +211,7 @@ public class OrderFillChecker {
 		double pricePaid = quantity * unitPrice;
 		double rebuyCostAfterFees = pricePaid + fees.feesOnAmount(pricePaid, Order.Type.LIMIT, Order.Side.BUY);
 
+		double accountBalanceTakenForMargin = (usdReservedBeforeTrade - usdReservedBeforeTrade / 1.5);
 		double tradeProfit = usdReservedBeforeTrade - rebuyCostAfterFees;
 		double netAccountBalance = usdBalanceBeforeTrade + tradeProfit;
 
@@ -234,7 +235,7 @@ public class OrderFillChecker {
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA); //orders submitted to buy it all back
 		assertEquals(0.0, account.getBalance("ADA").getLocked(), DELTA);
 
-		double inReserve = account.marginReserveFactorPct() * totalSpent;
+		double inReserve = account.marginReserveFactorPct() * totalSpent + feesOn(totalSpent);
 		assertEquals(inReserve + usdReservedBeforeTrade - feesOn(totalSpent), account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
@@ -267,12 +268,13 @@ public class OrderFillChecker {
 		assertEquals(0.0, account.getAmount("ADA"), DELTA);
 		assertEquals(totalQuantity, account.getShortedAmount("ADA"), DELTA);
 
-		double inReserve = account.marginReserveFactorPct() * totalSpent - feesPaid;
-		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA"), 0.0000001);
+		double inReserve = account.marginReserveFactorPct() * totalSpent;
+		assertEquals(inReserve + usdReservedBeforeTrade, account.getMarginReserve("USDT", "ADA"), DELTA);
 
 		double movedToReserve = inReserve - totalSpent;
 		double freeBalance = usdBalanceBeforeTrade - (movedToReserve + feesPaid);
 		assertEquals(freeBalance, account.getAmount("USDT"), DELTA);
+		assertEquals(0.0, account.getBalance("USDT").getLocked(), DELTA);
 
 		return quantityAfterFees;
 	}
