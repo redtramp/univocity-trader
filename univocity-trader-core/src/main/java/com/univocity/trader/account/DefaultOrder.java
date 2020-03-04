@@ -20,6 +20,7 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	private Order parent;
 	private double partialFillPrice = 0.0;
 	private double partialFillQuantity = 0.0;
+	private double originalMarginReserve = 0.0;
 
 	public DefaultOrder(String assetSymbol, String fundSymbol, Order.Side side, Trade.Side tradeSide, long time) {
 		super(assetSymbol, fundSymbol, side, tradeSide, time, null);
@@ -158,6 +159,14 @@ public class DefaultOrder extends OrderRequest implements Order, Comparable<Defa
 	public void setPartialFillDetails(double filledQuantity, double fillPrice) {
 		this.partialFillPrice = fillPrice;
 		this.partialFillQuantity = filledQuantity;
+	}
+
+	public double getOriginalMarginReserve() {
+		return originalMarginReserve;
+	}
+
+	public void setOriginalMarginReserve(double originalMarginReserve) {
+		this.originalMarginReserve = originalMarginReserve;
 	}
 
 	@Override

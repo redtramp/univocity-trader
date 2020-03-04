@@ -507,39 +507,59 @@ public class TradingWithPartialFillTests extends OrderFillChecker {
 		usdBalance = account.getAmount("USDT");
 		reservedBalance = account.getMarginReserve("USDT", "ADA");
 
-		assertEquals(50.054995000499, usdBalance, DELTA);
-		assertEquals(149.735124988503, reservedBalance, DELTA);
+		assertEquals(49.95510499, usdBalance, DELTA);
+		assertEquals(149.835015, reservedBalance, DELTA);
 		assertEquals(110.98889999889, account.getShortedAmount("ADA"), DELTA);
 
 		//clears free amounts so short can only rely on reserve amount
-		Order bnbOrder = submitOrder(account, "BNB", Order.Side.BUY, LONG, 10L, 2.0, 25.0, null);
-		executeOrder(account, bnbOrder, 25.0, 11);
+		Order bnbOrder = submitOrder(account, "BNB", Order.Side.BUY, LONG, 10L, 2.0, 24.98, null);
+		executeOrder(account, bnbOrder, 24.98, 11);
 
-		assertEquals(0.004995, account.getAmount("USDT"), DELTA);
+		assertEquals(0.000150945004, account.getAmount("USDT"), DELTA);
 		assertEquals(0, account.getBalance("USDT").getLocked(), DELTA);
-		assertEquals(3.0, account.getAmount("BNB"), DELTA);
+		assertEquals(2.9978002, account.getAmount("BNB"), DELTA);
 
-		assertEquals(149.735124988503, account.getMarginReserve("USDT", "ADA"), DELTA);
+		assertEquals(149.835015, account.getMarginReserve("USDT", "ADA"), DELTA);
 		assertEquals(110.98889999889, account.getShortedAmount("ADA"), DELTA);
 
 		tradeOnPrice(trader, 20, 1.2, BUY); //fills 33 units partially.
 
-		assertEquals(0.0, account.getAmount("USDT"), DELTA); //any remaining free amount now gone for margin reserve
-		assertEquals(0, account.getBalance("USDT").getLocked(), DELTA);
-
-		double shortFees = feesOn(110.98889999889 * 0.9);
 		double quantityAfterCover = 110.98889999889 - 33.0;
-		double spentToCover = quantityAfterCover * 1.2;
-		double coverFees = feesOn(spentToCover);
-
 		assertEquals(quantityAfterCover, account.getShortedAmount("ADA"), DELTA);
-		assertEquals(spentToCover * 1.5 - 0.004995, account.getMarginReserve("USDT", "ADA"), DELTA); //"old" free amount of 0.004995 eaten as well
 
+		assertEquals(0, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(0.0, account.getAmount("USDT"), DELTA);
+
+		double coverFees = feesOn(33 * 1.2);
+		double loss = 33 * 0.9 - 33 * 1.2 - coverFees;
+		double newMargin = quantityAfterCover * 1.2 * 1.5;
+		double accountBalanceRequirement = newMargin - newMargin / 1.5;
+		double initialAccountBalanceRequirement = reservedBalance - reservedBalance / 1.5;
+		double unavailableFunds = Math.abs(initialAccountBalanceRequirement - accountBalanceRequirement + loss);
+
+		assertEquals(newMargin + unavailableFunds - 0.000150945004, account.getMarginReserve("USDT", "ADA"), DELTA); //"old" free amount of 0.000150945004 used up
+
+		//Another partial fill
 		tick(account.getTraderOf("ADAUSDT"), 20, 1.2);
+
+		quantityAfterCover = quantityAfterCover - 33.0;
+		assertEquals(quantityAfterCover, account.getShortedAmount("ADA"), DELTA);
+
+		assertEquals(0, account.getBalance("USDT").getLocked(), DELTA);
+		assertEquals(0.0, account.getAmount("USDT"), DELTA);
+
+		coverFees = feesOn(66 * 1.2);
+		loss = 66 * 0.9 - 66 * 1.2 - coverFees;
+		newMargin = quantityAfterCover * 1.2 * 1.5;
+		accountBalanceRequirement = newMargin - newMargin / 1.5;
+		unavailableFunds = Math.abs(initialAccountBalanceRequirement - accountBalanceRequirement + loss);
+
+		assertEquals(newMargin + unavailableFunds - 0.000150945004, account.getMarginReserve("USDT", "ADA"), DELTA); //"old" free amount of 0.000150945004 used up
+
 		tick(account.getTraderOf("ADAUSDT"), 21, 1.2);
 		tick(account.getTraderOf("ADAUSDT"), 22, 1.2);
 
-		assertEquals(110.98889999889 * 1.2 - 110.98889999889 * 0.9 - feesOn(110.98889999889 * 1.2) - feesOn(110.98889999889 * 0.9), account.getAmount("USDT"));
+		assertEquals(subtractFees(110.98889999889 * 1.2) - addFees(110.98889999889 * 0.9), account.getAmount("USDT"));
 
 		checkTradeAfterShortBuy(usdBalance, reservedBalance, trade, quantity1, 1.2, 1.2, 0.9);
 	}

@@ -286,36 +286,67 @@ public class SimulatedClientAccount implements ClientAccount {
 		return false;
 	}
 
-	private void updateMarginReserve(String assetSymbol, String fundSymbol, Candle candle, double spent) {
+	private void updateMarginReserve(DefaultOrder order, Candle candle) {
+		String assetSymbol = order.getAssetsSymbol();
+		String fundSymbol = order.getFundsSymbol();
+		double spent = order.getPartialFillTotalPrice();
+
 		Balance funds = account.getBalance(fundSymbol);
-		double totalReserve = funds.getMarginReserve(assetSymbol);
+
+		double totalReserve;
+		if (order.getOriginalMarginReserve() == 0.0) {
+			totalReserve = funds.getMarginReserve(assetSymbol);
+			order.setOriginalMarginReserve(totalReserve);
+		} else {
+			totalReserve = order.getOriginalMarginReserve() * (1.0 - order.getFillPct() / 100.0);
+		}
+
 		double saleReserve = totalReserve / account.marginReserveFactorPct();
 		double accountReserve = totalReserve - saleReserve;
 		double shortedQuantity = account.getBalance(assetSymbol).getShorted();
 
+		double fee = tradingFees.feesOnPartialFill(order);
+
 		if (shortedQuantity <= EFFECTIVELY_ZERO) {
 			double profit = saleReserve - spent;
-			funds.setFree(funds.getFree() + profit + accountReserve);
+			funds.setFree(funds.getFree() + profit + accountReserve - fee);
 			funds.setMarginReserve(assetSymbol, 0.0);
 		} else {
+
 			double close;
+			Trader trader = getAccount().getTraderOf(assetSymbol + fundSymbol);
 			if (candle == null) {
-				Trader trader = getAccount().getTraderOf(assetSymbol + fundSymbol);
 				close = trader.lastClosingPrice();
 			} else {
 				close = candle.close;
 			}
+			Trade trade = trader.tradeOf(order);
+			if (trade == null) {
+				throw new IllegalStateException("No trade information for order: " + order);
+			}
 
-			double profit = accountReserve - spent;
+			double previousReserveAtCurrentPrice = account.applyMarginReserve((shortedQuantity + order.getPartialFillQuantity()) * close);
+
+			double profit;
+			if (previousReserveAtCurrentPrice > totalReserve) { //losing trade
+				double previousPrice = close * (totalReserve / previousReserveAtCurrentPrice);
+				profit = order.getPartialFillQuantity() * previousPrice - spent;
+			} else {
+				profit = accountReserve - spent;
+			}
+//
+//
+			double free = funds.getFree() + accountReserve + profit - fee;
+
 			double newReserve = account.applyMarginReserve(shortedQuantity * close);
-
 			double newSaleReserve = newReserve / account.marginReserveFactorPct();
 			double newAccountReserve = newReserve - newSaleReserve;
 
-			double free = funds.getFree() + accountReserve + profit - newAccountReserve;
-			if (free < 0) {
+			free = free - newAccountReserve;
+
+			if (free < 0) { //no available funds to satisfy margin reserve (in partial fill)
 				funds.setFree(0.0);
-				funds.setMarginReserve(assetSymbol, profit - free);
+				funds.setMarginReserve(assetSymbol, newReserve - free);
 			} else {
 				funds.setFree(free);
 				funds.setMarginReserve(assetSymbol, newReserve);
@@ -356,8 +387,6 @@ public class SimulatedClientAccount implements ClientAccount {
 						if (order.hasPartialFillDetails()) {
 							double covered = order.getPartialFillQuantity();
 							double shorted = account.getShortedAmount(asset);
-							double spent = order.getPartialFillTotalPrice();
-							double fee = tradingFees.feesOnAmount(spent, order.getType(), order.getSide());
 
 							if (covered >= shorted) { //bought to fully cover short and hold long position
 								account.subtractFromShortedBalance(asset, shorted);
@@ -365,15 +394,14 @@ public class SimulatedClientAccount implements ClientAccount {
 								if (remainderBought > 0) {
 									account.addToFreeBalance(asset, remainderBought);
 								}
-								updateMarginReserve(asset, funds, candle, spent);
+								updateMarginReserve(order, candle);
 								if (remainderBought > 0) {
 									account.subtractFromFreeBalance(funds, remainderBought * order.getAveragePrice());
 								}
 							} else {
 								account.subtractFromShortedBalance(asset, covered);
-								updateMarginReserve(asset, funds, candle, spent);
+								updateMarginReserve(order, candle);
 							}
-							account.subtractFromFreeBalance(funds, fee);
 						}
 					}
 				} else if (order.isSell()) {

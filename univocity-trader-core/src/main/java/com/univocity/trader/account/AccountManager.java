@@ -124,7 +124,7 @@ public class AccountManager implements ClientAccount, SimulatedAccountConfigurat
 		double locked = balance.getLocked();
 		if (locked < amount) {
 			balance.setLocked(0.0);
-			balance.setFree(locked);
+			balance.setFree(balance.getFree() - locked);
 		} else {
 			balance.setLocked(locked - amount);
 			balance.setFree(balance.getFree() + amount);
